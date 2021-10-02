@@ -35,14 +35,14 @@ int main(int argc, char *argv[])
     (void)argc;
     (void)argv;
 
-    if (cmdline_parser(argc, argv, &args_info) != 0)
-    {
-    	exit(0);
-    }
+    // if (cmdline_parser(argc, argv, &args_info) != 0)
+    // {
+    // 	exit(0);
+    // }
 
     // Save what is needed to avoid memory consumption
 
-    cmdline_parser_free(&args_info);
+    // cmdline_parser_free(&args_info);
 
     /* Main code */
     DEBUG("Main is empty -- add code here");

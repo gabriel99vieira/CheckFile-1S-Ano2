@@ -8,7 +8,7 @@
   <h2 align="center">CheckFile</h2>
 
   <p align="center">
-    Projeto realizado no ambito da disciplina de Programação Avançada
+    Advanced programing (Language C)
   </p>
 </p>
 <br />
@@ -18,8 +18,8 @@
 
 ## About The Project
 
-Projeto realizado no ambito da disciplina de Programação Avançada
-<br>
+Project carried out in the scope of Advanced programing subject
+
 <br>
 
 <!-- GETTING STARTED -->
@@ -31,10 +31,13 @@ Use this space to show useful examples of how a project can be used. Additional 
 
 _For more examples, please refer to the [Documentation](https://example.com)_
 
+<br>
+
 ## Roadmap
 
 [Roadmap Trello](https://trello.com/b/Jaw30Cxy/checkfile-1s-ano2)
 
+<br>
 
 <!-- LICENSE -->
 
