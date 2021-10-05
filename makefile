@@ -18,13 +18,13 @@ LDFLAGS=#-pg
 IFLAGS=-linux -brs -brf -br
 
 # Name of the executable
-PROGRAM=prog
+PROGRAM=checkfile
 
 # Prefix for the gengetopt file (if gengetopt is used)
 PROGRAM_OPT=args
 
 # Object files required to build the executable
-PROGRAM_OBJS=main.o debug.o memory.o $(PROGRAM_OPT).o
+PROGRAM_OBJS=main.o debug.o memory.o $(PROGRAM_OPT).o debug_aux.o
 
 # Clean and all are not files
 .PHONY: clean all docs indent debugon
@@ -50,6 +50,7 @@ $(PROGRAM_OPT).o: $(PROGRAM_OPT).c $(PROGRAM_OPT).h
 
 debug.o: debug.c debug.h
 memory.o: memory.c memory.h
+debug_aux.o: debug_aux.c debug_aux.h
 
 # disable warnings from gengetopt generated files
 $(PROGRAM_OPT).o: $(PROGRAM_OPT).c $(PROGRAM_OPT).h
