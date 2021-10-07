@@ -53,3 +53,6 @@ dkms.conf
 args.c
 args.h
 checkfile
+.vscode/c_cpp_properties.json
+core
+teste.txt

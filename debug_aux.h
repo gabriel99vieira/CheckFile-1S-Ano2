@@ -10,6 +10,10 @@ void on_debug(int type, char *fmt, ...);
 #define DEBUG_PROCESSING 5
 #define DEBUG_WAITING 6
 
+/**
+ * @see on_debug() 
+ * 
+ */
 #define ON_DEBUG(type, ...) on_debug((type), __VA_ARGS__)
 
 #endif
