@@ -27,13 +27,20 @@
 #include "debug.h"
 #include "memory.h"
 #include "args.h"
-#include "debug_aux.h"
+#include "message.h"
+
+/**
+ * Application variables
+ */
+#define MAX_QUEUE 100
+#define MAX_FILE_PATH 100
 
 /**
  * Application errors
  */
 #define ARGUMENT_MISSING 10
 #define ARGUMENT_INCORRECT 11
+#define EMPTY_FILE 12
 
 struct gengetopt_args_info args_info;
 
@@ -56,7 +63,7 @@ int main(int argc, char *argv[])
         exit(0);
     }
 
-    char *queue_files[100];
+    char queue_files[MAX_QUEUE][MAX_FILE_PATH];
     int queue_counter = 0;
     struct stat f_stat;
 
@@ -131,7 +138,101 @@ int main(int argc, char *argv[])
             ON_DEBUG(DEBUG_INFO, "Batch input file is valid. Processing contents...");
 
             int fd = open(args_info.batch_arg, O_RDONLY);
-            // TODO batch file
+            int fs = file_size(fd);
+            char c;
+            int readed = 0;
+
+            int linebuffer_counter = 0;
+            char linebuffer[fs + 2];
+            linebuffer[fs] = '\0';
+
+            while ((readed = read(fd, &c, 1)) > 0)
+            {
+                if (c == '\r')
+                {
+                    continue;
+                }
+
+                if (c == '\n' || c == '\0')
+                {
+                    linebuffer[linebuffer_counter] = '\0';
+                    linebuffer_counter = 0;
+
+                    if (strlen(linebuffer) > 0)
+                    {
+                        if (strlen(linebuffer) < MAX_FILE_PATH)
+                        {
+                            if (stat(linebuffer, &f_stat) == 0)
+                            {
+                                if (!S_ISREG(f_stat.st_mode))
+                                {
+                                    ON_DEBUG(DEBUG_ERROR, "'%s' is not a regular file.", linebuffer);
+                                    // MESSAGE(MESSAGE_WARN, "Skipping file '%s'. Make sure its a file.", linebuffer);
+                                }
+                                else
+                                {
+                                    strcpy(queue_files[queue_counter], &linebuffer[0]);
+                                    queue_counter++;
+                                    ON_DEBUG(DEBUG_INFO, "Found line with ( %s )", linebuffer);
+                                }
+                            }
+                            else
+                            {
+                                ON_DEBUG(DEBUG_ERROR, "'%s' not found.", linebuffer);
+                                // MESSAGE(MESSAGE_WARN, "Unable to get file properties. Make sure '%s' exists.", linebuffer);
+                            }
+                        }
+                        else
+                        {
+                            ON_DEBUG(DEBUG_WARN, "Path limit (%d) exceded skipping '%s'", MAX_FILE_PATH, linebuffer);
+                        }
+                    }
+                }
+                else
+                {
+                    linebuffer[linebuffer_counter] = c;
+                    linebuffer_counter++;
+                }
+            }
+
+            //* File ended
+            if (readed == 0)
+            {
+                linebuffer[linebuffer_counter] = '\0';
+                linebuffer_counter = 0;
+
+                if (strlen(linebuffer) > 0)
+                {
+                    if (strlen(linebuffer) < MAX_FILE_PATH)
+                    {
+                        if (stat(linebuffer, &f_stat) == 0)
+                        {
+                            if (!S_ISREG(f_stat.st_mode))
+                            {
+                                ON_DEBUG(DEBUG_WARN, "'%s' is not a regular file.", linebuffer);
+                                // MESSAGE(MESSAGE_WARN, "Skipping file '%s'. Make sure its a file.", linebuffer);
+                            }
+                            else
+                            {
+                                strcpy(queue_files[queue_counter], linebuffer);
+                                queue_counter++;
+                                ON_DEBUG(DEBUG_INFO, "Found line with ( %s )", linebuffer);
+                            }
+                        }
+                        else
+                        {
+                            ON_DEBUG(DEBUG_ERROR, "'%s' not found.", linebuffer);
+                            // MESSAGE(MESSAGE_WARN, "Unable to get file properties. Make sure '%s' exists.", linebuffer);
+                        }
+                    }
+                    else
+                    {
+                        ON_DEBUG(DEBUG_WARN, "Path limit (%d) exceded skipping '%s'", MAX_FILE_PATH, linebuffer);
+                    }
+                }
+            }
+
+            close(fd);
         }
         else
         {
@@ -142,9 +243,17 @@ int main(int argc, char *argv[])
 
     cmdline_parser_free(&args_info);
 
+    if (queue_counter == 0)
+    {
+        ON_DEBUG(DEBUG_ERROR, "No valid paths were found within the given arguments.");
+        ERROR(EMPTY_FILE, "No valid paths were found.");
+    }
+
     ON_DEBUG(DEBUG_INFO, "Everything ok. Ready to start processing");
 
     // TODO processing
+    // queue_files array
+    // queue_counter
 
     exit(EXIT_SUCCESS);
     return 0;
