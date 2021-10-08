@@ -9,6 +9,8 @@
 
   <p align="center">
     Advanced programing (Language C)
+    <br>
+    Project carried out in the scope of Advanced programing subject
   </p>
 </p>
 <br />
@@ -18,18 +20,55 @@
 
 ## About The Project
 
-Project carried out in the scope of Advanced programing subject
+The main goal of this project is to evaluate a file type or a given batch of files.
+<br>
+To make sure that every one has the right extension.
 
 <br>
 
 <!-- GETTING STARTED -->
 
+## Compiling
+
+### Standard
+
+```
+make clean && make
+```
+
+### With debug
+
+```
+make clean && make debugon
+```
+
+### With executable ready
+
+```
+make clean && make && ./checkfile -f FILE
+make clean && make && ./checkfile -d POINT_DIRECTORY -f FILE
+
+make clean && make && ./checkfile -b BATCH_FILE
+make clean && make && ./checkfile -d POINT_DIRECTORY -b BATCH_FILE
+```
 
 ## Usage
 
-Use this space to show useful examples of how a project can be used. Additional screenshots, code examples and demos work well in this space. You may also link to more resources.
+```
+./checkfile -f FILE
+./checkfile -f FILE -d POINT_DIRECTORY
 
-_For more examples, please refer to the [Documentation](https://example.com)_
+./checkfile -b FILE
+./checkfile -b FILE -d POINT_DIRECTORY
+```
+
+<br>
+
+## Work by
+
+Gabriel Madeira Vieira Nº2200661
+
+Diogo dos Anjos Barbeiro Nº???????
 
 <br>
 
