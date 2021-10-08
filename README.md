@@ -54,6 +54,14 @@ make clean && make && ./checkfile -d POINT_DIRECTORY -b BATCH_FILE
 
 ## Usage
 
+> Help
+
+```
+./checkfile -h
+```
+
+> Execute
+
 ```
 ./checkfile -f FILE
 ./checkfile -f FILE -d POINT_DIRECTORY
