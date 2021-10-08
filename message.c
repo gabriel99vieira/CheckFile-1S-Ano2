@@ -77,6 +77,13 @@ void on_debug(int type, char *fmt, ...)
 #endif
 }
 
+/**
+ * @brief A display message macro to make ther terminal more appealing
+ * 
+ * @param type 
+ * @param fmt 
+ * @param ... 
+ */
 void on_message(int type, char *fmt, ...)
 {
     /* Removing unused variable error */

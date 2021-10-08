@@ -2,6 +2,7 @@
 #define _MESSAGE_H_
 
 void on_debug(int type, char *fmt, ...);
+void on_message(int type, char *fmt, ...);
 
 #define DEBUG_OK 1
 #define DEBUG_INFO 2

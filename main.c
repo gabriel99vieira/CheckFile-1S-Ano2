@@ -28,6 +28,7 @@
 #include "memory.h"
 #include "args.h"
 #include "message.h"
+#include "file_helper.h"
 
 /**
  * Application variables
@@ -41,15 +42,9 @@
 #define ARGUMENT_MISSING 10
 #define ARGUMENT_INCORRECT 11
 #define EMPTY_FILE 12
+#define UNABLE_TO_CLOSE 13
 
 struct gengetopt_args_info args_info;
-
-off_t file_size(int fd)
-{
-    int offset = lseek(fd, 0L, SEEK_END);
-    lseek(fd, 0L, SEEK_SET);
-    return offset;
-}
 
 int main(int argc, char *argv[])
 {
@@ -57,7 +52,9 @@ int main(int argc, char *argv[])
     (void)argc;
     (void)argv;
 
-    ON_DEBUG(DEBUG_INFO, "Gengetopt validation");
+    MESSAGE(MESSAGE_INFO, "Checkfile starting...");
+
+    ON_DEBUG(DEBUG_INFO, "Gengetopt validation.");
     if (cmdline_parser(argc, argv, &args_info) != 0)
     {
         exit(0);
@@ -65,134 +62,125 @@ int main(int argc, char *argv[])
 
     char queue_files[MAX_QUEUE][MAX_FILE_PATH];
     int queue_counter = 0;
-    struct stat f_stat;
 
-    ON_DEBUG(DEBUG_INFO, "Program validation");
+    ON_DEBUG(DEBUG_INFO, "Program validation.");
 
     //* Verify directory argument */
     if (args_info.dir_given)
     {
-        if (stat(args_info.dir_arg, &f_stat) == 0)
+        if (!file_exists(args_info.dir_arg))
         {
-            if (!S_ISDIR(f_stat.st_mode))
-            {
-                ON_DEBUG(DEBUG_ERROR, "'%s' is not a directory.", args_info.dir_arg);
-                ERROR(ARGUMENT_INCORRECT, "Make sure '%s' is a directory.", args_info.dir_arg);
-            }
+            ERROR(ARGUMENT_INCORRECT, "Directory does not exist. (%s)", args_info.dir_arg);
         }
-        else
+
+        if (!is_directory(args_info.dir_arg))
         {
-            ON_DEBUG(DEBUG_ERROR, "Directory '%s' not found.", args_info.dir_arg);
-            ERROR(ARGUMENT_INCORRECT, "Unable to get directory properties. Make sure '%s' exists.", args_info.dir_arg);
+            ERROR(ARGUMENT_INCORRECT, "Make sure '%s' exists.", args_info.dir_arg);
         }
+
+        chdir(args_info.dir_arg);
+        MESSAGE(MESSAGE_INFO, "Working in the given directory. ('%s')", args_info.dir_arg);
     }
 
     //* Verify if file or batch file is given */
     if (!(args_info.file_given || args_info.batch_given))
     {
-        ON_DEBUG(DEBUG_ERROR, "Missing argument for execution ('batch' or 'file').");
         ERROR(ARGUMENT_MISSING, "Insuficient arguments. (required 'batch' or 'file')");
     }
-    ON_DEBUG(DEBUG_INFO, "A required argument was given");
+
+    ON_DEBUG(DEBUG_INFO, "A required argument was given.");
+    MESSAGE(MESSAGE_INFO, "Validating input...");
 
     //* Verify single file input */
     if (args_info.file_given)
     {
-        char *filepath = args_info.file_arg;
-
-        if (args_info.dir_given)
+        if (!file_exists(args_info.file_arg))
         {
-            strcpy(filepath, args_info.dir_arg);
-            strcat(filepath, args_info.batch_arg);
-            ON_DEBUG(DEBUG_INFO, "Working directory given. ('%s')", filepath);
+            ERROR(ARGUMENT_INCORRECT, "Make sure '%s' exists.", args_info.file_arg);
         }
 
-        if (stat(filepath, &f_stat) == 0)
+        if (!is_regular_file(args_info.file_arg))
         {
-            if (!S_ISREG(f_stat.st_mode))
-            {
-                ON_DEBUG(DEBUG_ERROR, "'%s' is not a regular file.", filepath);
-                ERROR(ARGUMENT_INCORRECT, "Make sure '%s' is a file.", filepath);
-            }
-            strcpy(queue_files[queue_counter], filepath);
-            queue_counter++;
-            ON_DEBUG(DEBUG_INFO, "Input file is valid and is added to the queue");
+            ERROR(ARGUMENT_INCORRECT, "Make sure '%s' is a regular file.", args_info.file_arg);
         }
-        else
-        {
-            ON_DEBUG(DEBUG_ERROR, "'%s' not found.", filepath);
-            ERROR(ARGUMENT_INCORRECT, "Unable to get file properties. Make sure '%s' exists.", filepath);
-        }
+
+        strcpy(queue_files[queue_counter], args_info.file_arg);
+        queue_counter++;
+        ON_DEBUG(DEBUG_INFO, "Input file is valid and is added to the queue");
     }
 
-    // //* Verify batch file input */
+    //* Verify batch file input */
     if (args_info.batch_given)
     {
-        if (stat(args_info.batch_arg, &f_stat) == 0)
+        if (!file_exists(args_info.batch_arg))
         {
-            if (!S_ISREG(f_stat.st_mode))
+            ERROR(ARGUMENT_INCORRECT, "Make sure '%s' exists.", args_info.file_arg);
+        }
+
+        if (!is_regular_file(args_info.batch_arg))
+        {
+            ERROR(ARGUMENT_INCORRECT, "Make sure '%s' is a file and exists.", args_info.batch_arg);
+        }
+
+        ON_DEBUG(DEBUG_INFO, "Batch input file is valid. Processing contents...");
+
+        int fd = open_file(args_info.batch_arg, O_RDONLY);
+        int fs = file_size(fd);
+        char c;
+        int readed = 0;
+
+        int linebuffer_counter = 0;
+        char linebuffer[fs + 2];
+        linebuffer[fs] = '\0';
+
+        ON_DEBUG(DEBUG_INFO, "Starting to read batch file contents...");
+        while ((readed = read(fd, &c, 1)) > 0)
+        {
+            if (c == '\r')
             {
-                ON_DEBUG(DEBUG_ERROR, "'%s' is not a regular file.", args_info.batch_arg);
-                ERROR(ARGUMENT_INCORRECT, "Make sure '%s' is a file.", args_info.batch_arg);
+                continue;
             }
-            ON_DEBUG(DEBUG_INFO, "Batch input file is valid. Processing contents...");
 
-            int fd = open(args_info.batch_arg, O_RDONLY);
-            int fs = file_size(fd);
-            char c;
-            int readed = 0;
-
-            int linebuffer_counter = 0;
-            char linebuffer[fs + 2];
-            linebuffer[fs] = '\0';
-
-            while ((readed = read(fd, &c, 1)) > 0)
+            //* End a line
+            if (c == '\n' || c == '\0')
             {
-                if (c == '\r')
-                {
-                    continue;
-                }
+                // Make sure the line ends
+                linebuffer[linebuffer_counter] = '\0';
+                linebuffer_counter = 0;
 
-                if (c == '\n' || c == '\0')
+                // Confirm that the line has text
+                if (strlen(linebuffer) > 0)
                 {
-                    linebuffer[linebuffer_counter] = '\0';
-                    linebuffer_counter = 0;
-
-                    if (strlen(linebuffer) > 0)
+                    // And does not exceed the MAX_FILE_PATH
+                    if (strlen(linebuffer) < MAX_FILE_PATH)
                     {
-                        if (strlen(linebuffer) < MAX_FILE_PATH)
+                        if (!file_exists(linebuffer))
                         {
-                            if (stat(linebuffer, &f_stat) == 0)
-                            {
-                                if (!S_ISREG(f_stat.st_mode))
-                                {
-                                    ON_DEBUG(DEBUG_ERROR, "'%s' is not a regular file.", linebuffer);
-                                    // MESSAGE(MESSAGE_WARN, "Skipping file '%s'. Make sure its a file.", linebuffer);
-                                }
-                                else
-                                {
-                                    strcpy(queue_files[queue_counter], &linebuffer[0]);
-                                    queue_counter++;
-                                    ON_DEBUG(DEBUG_INFO, "Found line with ( %s )", linebuffer);
-                                }
-                            }
-                            else
-                            {
-                                ON_DEBUG(DEBUG_ERROR, "'%s' not found.", linebuffer);
-                                // MESSAGE(MESSAGE_WARN, "Unable to get file properties. Make sure '%s' exists.", linebuffer);
-                            }
+                            MESSAGE(MESSAGE_WARN, "'%s' does not exist. Skipping...", linebuffer);
+                            continue;
                         }
-                        else
+
+                        if (!is_regular_file(linebuffer))
                         {
-                            ON_DEBUG(DEBUG_WARN, "Path limit (%d) exceded skipping '%s'", MAX_FILE_PATH, linebuffer);
+                            MESSAGE(MESSAGE_WARN, "'%s' is not a regular file. Skipping...", linebuffer);
+                            continue;
                         }
+
+                        strcpy(queue_files[queue_counter], &linebuffer[0]);
+                        queue_counter++;
+                        ON_DEBUG(DEBUG_INFO, "Found line with ( %s )", linebuffer);
+                    }
+                    else
+                    {
+                        MESSAGE(MESSAGE_WARN, "Path limit (%d) exceded skipping '%s'", MAX_FILE_PATH, linebuffer);
                     }
                 }
-                else
-                {
-                    linebuffer[linebuffer_counter] = c;
-                    linebuffer_counter++;
-                }
+            }
+            else
+            {
+                // Adds to the buffer while no line ends
+                linebuffer[linebuffer_counter] = c;
+                linebuffer_counter++;
             }
 
             //* File ended
@@ -205,25 +193,21 @@ int main(int argc, char *argv[])
                 {
                     if (strlen(linebuffer) < MAX_FILE_PATH)
                     {
-                        if (stat(linebuffer, &f_stat) == 0)
+                        if (!file_exists(linebuffer))
                         {
-                            if (!S_ISREG(f_stat.st_mode))
-                            {
-                                ON_DEBUG(DEBUG_WARN, "'%s' is not a regular file.", linebuffer);
-                                // MESSAGE(MESSAGE_WARN, "Skipping file '%s'. Make sure its a file.", linebuffer);
-                            }
-                            else
-                            {
-                                strcpy(queue_files[queue_counter], linebuffer);
-                                queue_counter++;
-                                ON_DEBUG(DEBUG_INFO, "Found line with ( %s )", linebuffer);
-                            }
+                            MESSAGE(MESSAGE_WARN, "'%s' does not exist. Skipping...", linebuffer);
+                            continue;
                         }
-                        else
+
+                        if (!is_regular_file(linebuffer))
                         {
-                            ON_DEBUG(DEBUG_ERROR, "'%s' not found.", linebuffer);
-                            // MESSAGE(MESSAGE_WARN, "Unable to get file properties. Make sure '%s' exists.", linebuffer);
+                            ON_DEBUG(MESSAGE_WARN, "'%s' is not a regular file.", linebuffer);
+                            MESSAGE(MESSAGE_WARN, "'%s' is not a regular file. Skipping...", linebuffer);
                         }
+
+                        strcpy(queue_files[queue_counter], &linebuffer[0]);
+                        queue_counter++;
+                        ON_DEBUG(DEBUG_INFO, "Found line with ( %s )", linebuffer);
                     }
                     else
                     {
@@ -231,23 +215,27 @@ int main(int argc, char *argv[])
                     }
                 }
             }
+        }
 
-            close(fd);
-        }
-        else
+        int is_closed = close(fd);
+
+        if (is_closed == -1)
         {
-            ON_DEBUG(DEBUG_ERROR, "'%s' not found.", args_info.file_arg);
-            ERROR(ARGUMENT_INCORRECT, "Unable to get file properties. Make sure '%s' exists.", args_info.file_arg);
+            ERROR(UNABLE_TO_CLOSE, "Unable to close batch file.");
         }
+
+        ON_DEBUG(DEBUG_INFO, "Closed batch file.");
     }
 
+    ON_DEBUG(DEBUG_INFO, "Freed up gengetopt struct.");
     cmdline_parser_free(&args_info);
 
     if (queue_counter == 0)
     {
-        ON_DEBUG(DEBUG_ERROR, "No valid paths were found within the given arguments.");
-        ERROR(EMPTY_FILE, "No valid paths were found.");
+        ERROR(EMPTY_FILE, "No valid paths were found in the input.");
     }
+
+    MESSAGE(MESSAGE_OK, "Found %d files to check.", queue_counter);
 
     ON_DEBUG(DEBUG_INFO, "Everything ok. Ready to start processing");
 
