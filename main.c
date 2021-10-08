@@ -13,7 +13,7 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
-// #include <sys/wait.h>
+#include <sys/wait.h>
 // #include <sys/sysmacros.h>
 
 #include <ctype.h>
@@ -34,7 +34,9 @@
  * Application variables
  */
 #define MAX_QUEUE 100
-#define MAX_FILE_PATH 100
+#define MAX_STRING_SIZE 101
+#define TMP_FILE "tmp"
+#define DELETE_TMP_AFTER_USE 0
 
 /**
  * Application errors
@@ -42,9 +44,14 @@
 #define ARGUMENT_MISSING 10
 #define ARGUMENT_INCORRECT 11
 #define EMPTY_FILE 12
-#define UNABLE_TO_CLOSE 13
+#define UNABLE_TO_OPEN_FILE 13
+#define UNABLE_TO_READ_FILE 14
+#define UNABLE_TO_WRITE_FILE 15
+#define UNABLE_TO_CLOSE_FILE 16
+#define UNABLE_TO_START_PROCESS 17
 
 struct gengetopt_args_info args_info;
+char working_directory[MAX_STRING_SIZE];
 
 int main(int argc, char *argv[])
 {
@@ -52,7 +59,9 @@ int main(int argc, char *argv[])
     (void)argc;
     (void)argv;
 
-    MESSAGE(MESSAGE_INFO, "Checkfile starting...");
+    MESSAGE(MESSAGE_INFO, "Checkfile starting.");
+    getcwd(working_directory, sizeof(working_directory));
+    ON_DEBUG(DEBUG_INFO, "Saving working directory. ('%s')", working_directory);
 
     ON_DEBUG(DEBUG_INFO, "Gengetopt validation.");
     if (cmdline_parser(argc, argv, &args_info) != 0)
@@ -60,7 +69,7 @@ int main(int argc, char *argv[])
         exit(0);
     }
 
-    char queue_files[MAX_QUEUE][MAX_FILE_PATH];
+    char queue_files[MAX_QUEUE][MAX_STRING_SIZE];
     int queue_counter = 0;
 
     ON_DEBUG(DEBUG_INFO, "Program validation.");
@@ -79,7 +88,7 @@ int main(int argc, char *argv[])
         }
 
         chdir(args_info.dir_arg);
-        MESSAGE(MESSAGE_INFO, "Working in the given directory. ('%s')", args_info.dir_arg);
+        MESSAGE(MESSAGE_INFO, "Changed working directory to '%s'.", args_info.dir_arg);
     }
 
     //* Verify if file or batch file is given */
@@ -89,7 +98,7 @@ int main(int argc, char *argv[])
     }
 
     ON_DEBUG(DEBUG_INFO, "A required argument was given.");
-    MESSAGE(MESSAGE_INFO, "Validating input...");
+    MESSAGE(MESSAGE_INFO, "Validating input.");
 
     //* Verify single file input */
     if (args_info.file_given)
@@ -122,7 +131,7 @@ int main(int argc, char *argv[])
             ERROR(ARGUMENT_INCORRECT, "Make sure '%s' is a file and exists.", args_info.batch_arg);
         }
 
-        ON_DEBUG(DEBUG_INFO, "Batch input file is valid. Processing contents...");
+        ON_DEBUG(DEBUG_INFO, "Batch input file is valid. Processing contents.");
 
         int fd = open_file(args_info.batch_arg, O_RDONLY);
         int fs = file_size(fd);
@@ -133,7 +142,7 @@ int main(int argc, char *argv[])
         char linebuffer[fs + 2];
         linebuffer[fs] = '\0';
 
-        ON_DEBUG(DEBUG_INFO, "Starting to read batch file contents...");
+        ON_DEBUG(DEBUG_INFO, "Starting to read batch file contents.");
         while ((readed = read(fd, &c, 1)) > 0)
         {
             if (c == '\r')
@@ -151,18 +160,18 @@ int main(int argc, char *argv[])
                 // Confirm that the line has text
                 if (strlen(linebuffer) > 0)
                 {
-                    // And does not exceed the MAX_FILE_PATH
-                    if (strlen(linebuffer) < MAX_FILE_PATH)
+                    // And does not exceed the MAX_STRING_SIZE
+                    if (strlen(linebuffer) < MAX_STRING_SIZE)
                     {
                         if (!file_exists(linebuffer))
                         {
-                            MESSAGE(MESSAGE_WARN, "'%s' does not exist. Skipping...", linebuffer);
+                            MESSAGE(MESSAGE_WARN, "'%s' does not exist. Skipping.", linebuffer);
                             continue;
                         }
 
                         if (!is_regular_file(linebuffer))
                         {
-                            MESSAGE(MESSAGE_WARN, "'%s' is not a regular file. Skipping...", linebuffer);
+                            MESSAGE(MESSAGE_WARN, "'%s' is not a regular file. Skipping.", linebuffer);
                             continue;
                         }
 
@@ -172,7 +181,7 @@ int main(int argc, char *argv[])
                     }
                     else
                     {
-                        MESSAGE(MESSAGE_WARN, "Path limit (%d) exceded skipping '%s'", MAX_FILE_PATH, linebuffer);
+                        MESSAGE(MESSAGE_WARN, "Path limit (%d) exceded skipping '%s'", MAX_STRING_SIZE, linebuffer);
                     }
                 }
             }
@@ -182,37 +191,35 @@ int main(int argc, char *argv[])
                 linebuffer[linebuffer_counter] = c;
                 linebuffer_counter++;
             }
+        }
 
-            //* File ended
-            if (readed == 0)
+        //* File ended
+        if (readed == 0)
+        {
+            linebuffer[linebuffer_counter] = '\0';
+            linebuffer_counter = 0;
+
+            if (strlen(linebuffer) > 0)
             {
-                linebuffer[linebuffer_counter] = '\0';
-                linebuffer_counter = 0;
-
-                if (strlen(linebuffer) > 0)
+                if (strlen(linebuffer) < MAX_STRING_SIZE)
                 {
-                    if (strlen(linebuffer) < MAX_FILE_PATH)
+                    if (!file_exists(linebuffer))
                     {
-                        if (!file_exists(linebuffer))
-                        {
-                            MESSAGE(MESSAGE_WARN, "'%s' does not exist. Skipping...", linebuffer);
-                            continue;
-                        }
-
-                        if (!is_regular_file(linebuffer))
-                        {
-                            ON_DEBUG(MESSAGE_WARN, "'%s' is not a regular file.", linebuffer);
-                            MESSAGE(MESSAGE_WARN, "'%s' is not a regular file. Skipping...", linebuffer);
-                        }
-
-                        strcpy(queue_files[queue_counter], &linebuffer[0]);
-                        queue_counter++;
-                        ON_DEBUG(DEBUG_INFO, "Found line with ( %s )", linebuffer);
+                        MESSAGE(MESSAGE_WARN, "'%s' does not exist. Skipping.", linebuffer);
                     }
-                    else
+
+                    if (!is_regular_file(linebuffer))
                     {
-                        ON_DEBUG(DEBUG_WARN, "Path limit (%d) exceded skipping '%s'", MAX_FILE_PATH, linebuffer);
+                        MESSAGE(MESSAGE_WARN, "'%s' is not a regular file. Skipping.", linebuffer);
                     }
+
+                    strcpy(queue_files[queue_counter], &linebuffer[0]);
+                    queue_counter++;
+                    ON_DEBUG(DEBUG_INFO, "Found line with ( %s )", linebuffer);
+                }
+                else
+                {
+                    ON_DEBUG(DEBUG_WARN, "Path limit (%d) exceded skipping '%s'", MAX_STRING_SIZE, linebuffer);
                 }
             }
         }
@@ -221,7 +228,7 @@ int main(int argc, char *argv[])
 
         if (is_closed == -1)
         {
-            ERROR(UNABLE_TO_CLOSE, "Unable to close batch file.");
+            ERROR(UNABLE_TO_CLOSE_FILE, "Unable to close batch file.");
         }
 
         ON_DEBUG(DEBUG_INFO, "Closed batch file.");
@@ -237,12 +244,72 @@ int main(int argc, char *argv[])
 
     MESSAGE(MESSAGE_OK, "Found %d files to check.", queue_counter);
 
-    ON_DEBUG(DEBUG_INFO, "Everything ok. Ready to start processing");
+    ON_DEBUG(DEBUG_OK, "Ready to start processing.");
+    // New process
+    pid_t pid = fork();
+    if (pid == -1)
+    {
+        ERROR(UNABLE_TO_START_PROCESS, "Unable to start new auxiliar process.");
+    }
 
-    // TODO processing
-    // queue_files array
-    // queue_counter
+    if (pid == 0)
+    {
+        ON_DEBUG(DEBUG_PROCESSING, "[%d] Process children executing.", getpid());
 
-    exit(EXIT_SUCCESS);
-    return 0;
+        ON_DEBUG(DEBUG_PROCESSING, "[%d] Creating auxiliar file to redirect output.", getpid());
+        int fd = open(TMP_FILE, O_CREAT | O_RDWR | O_TRUNC, 0644);
+        if (fd == -1)
+        {
+            ERROR(UNABLE_TO_OPEN_FILE, "[%d] Unable to create/open temporary file.", getpid());
+        }
+        dup2(fd, STDOUT_FILENO);
+        close(fd);
+
+        char *exec_arguments[MAX_STRING_SIZE];
+        exec_arguments[0] = "file";
+        exec_arguments[1] = "--mime-type";
+        int tmp_counter = 2;
+
+        for (int i = 0; i < queue_counter; i++)
+        {
+            exec_arguments[i + tmp_counter] = queue_files[i];
+        }
+        tmp_counter += queue_counter;
+        exec_arguments[tmp_counter] = NULL;
+
+        if (DELETE_TMP_AFTER_USE)
+        {
+            unlink(TMP_FILE);
+        }
+        execvp("file", exec_arguments);
+        ERROR(UNABLE_TO_START_PROCESS, "[%d] Process was terminated unexpectedly.", getpid());
+    }
+
+    ON_DEBUG(DEBUG_WAITING, "Parent process waiting for child.");
+    waitpid(pid, NULL, 0);
+
+    // Happy Birthday!
+    sleep(1);
+
+    ON_DEBUG(DEBUG_WAITING, "Parent process resuming.");
+
+    int fd = open(TMP_FILE, O_CREAT | O_RDWR, 0644);
+    if (fd == -1)
+    {
+        ERROR(UNABLE_TO_OPEN_FILE, "Unable to create/open temporary file.");
+    }
+    fsync(fd);
+
+    int readed = 0;
+    char c;
+    while ((readed = read(fd, &c, 1)))
+    {
+        printf("%c", c);
+        // TODO Finish
+    }
+
+    close(fd);
+
+    printf("\n");
+    return EXIT_SUCCESS;
 }

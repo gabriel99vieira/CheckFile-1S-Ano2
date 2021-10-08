@@ -18,57 +18,46 @@ void on_debug(int type, char *fmt, ...)
 
 #ifdef SHOW_DEBUG
     va_list ap;
-
-    printf("DEBUGGING");
+    printf("DEBUGGING ");
+    printf("[");
     switch (type)
     {
     case DEBUG_OK:
-        printf(" [");
         setcolor(COLOR_GREEN);
         printf("OK");
         setcolor(COLOR_RESET);
-        printf("]: ");
         break;
     case DEBUG_INFO:
-        printf(" [");
         setcolor(COLOR_CYAN);
         printf("INFO");
         setcolor(COLOR_RESET);
-        printf("]: ");
         break;
     case DEBUG_WARN:
-        printf(" [");
         setcolor(COLOR_YELLOW);
-        printf("WARNING");
+        printf("WARN");
         setcolor(COLOR_RESET);
-        printf("]: ");
         break;
     case DEBUG_ERROR:
-        printf(" [");
         setcolor(COLOR_RED);
         printf("ERROR");
         setcolor(COLOR_RESET);
-        printf("]: ");
         break;
     case DEBUG_PROCESSING:
-        printf(" [");
         setcolor(COLOR_BLUE);
-        printf("PROCESSING");
+        printf("PROCESS");
         setcolor(COLOR_RESET);
-        printf("]: ");
         break;
     case DEBUG_WAITING:
-        printf(" [");
         setcolor(COLOR_MAGENTA);
         printf("WAITING");
         setcolor(COLOR_RESET);
-        printf("]: ");
         break;
 
     default:
-        printf(" [OTHER]: ");
+        printf("OTHER");
         break;
     }
+    printf("]: ");
 
     va_start(ap, fmt);
     vfprintf(stdout, fmt, ap);
@@ -92,56 +81,46 @@ void on_message(int type, char *fmt, ...)
 
     va_list ap;
 
-    printf("MESSAGE");
+    // printf("MESSAGE");
+    printf("[");
     switch (type)
     {
     case MESSAGE_OK:
-        printf(" [");
         setcolor(COLOR_GREEN);
         printf("OK");
         setcolor(COLOR_RESET);
-        printf("]: ");
         break;
     case MESSAGE_INFO:
-        printf(" [");
         setcolor(COLOR_CYAN);
         printf("INFO");
         setcolor(COLOR_RESET);
-        printf("]: ");
         break;
     case MESSAGE_WARN:
-        printf(" [");
         setcolor(COLOR_YELLOW);
-        printf("WARNING");
+        printf("WARN");
         setcolor(COLOR_RESET);
-        printf("]: ");
         break;
     case MESSAGE_ERROR:
-        printf(" [");
         setcolor(COLOR_RED);
         printf("ERROR");
         setcolor(COLOR_RESET);
-        printf("]: ");
         break;
     case MESSAGE_PROCESSING:
-        printf(" [");
         setcolor(COLOR_BLUE);
-        printf("PROCESSING");
+        printf("PROCESS");
         setcolor(COLOR_RESET);
-        printf("]: ");
         break;
     case MESSAGE_WAITING:
-        printf(" [");
         setcolor(COLOR_MAGENTA);
         printf("WAITING");
         setcolor(COLOR_RESET);
-        printf("]: ");
         break;
 
     default:
-        printf(" [OTHER]: ");
+        printf("OTHER");
         break;
     }
+    printf("]: ");
 
     va_start(ap, fmt);
     vfprintf(stdout, fmt, ap);
