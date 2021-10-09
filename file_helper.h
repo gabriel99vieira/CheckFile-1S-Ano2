@@ -15,4 +15,6 @@ int is_directory(const char *path);
 
 int is_regular_file(const char *path);
 
+char *file_extension(const char *file);
+
 #endif

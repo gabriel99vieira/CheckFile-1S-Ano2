@@ -4,13 +4,6 @@
 void on_debug(int type, char *fmt, ...);
 void on_message(int type, char *fmt, ...);
 
-#define DEBUG_OK 1
-#define DEBUG_INFO 2
-#define DEBUG_WARN 3
-#define DEBUG_ERROR 4
-#define DEBUG_PROCESSING 5
-#define DEBUG_WAITING 6
-
 #define MESSAGE_OK 1
 #define MESSAGE_INFO 2
 #define MESSAGE_WARN 3

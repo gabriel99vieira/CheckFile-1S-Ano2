@@ -1,5 +1,10 @@
 #include <stdio.h>
 #include <stdarg.h>
+#include <error.h>
+#include <stdlib.h>
+#include <string.h>
+#include <errno.h>
+#include <netdb.h>
 #include "colors.h"
 #include "message.h"
 
@@ -22,32 +27,32 @@ void on_debug(int type, char *fmt, ...)
     printf("[");
     switch (type)
     {
-    case DEBUG_OK:
+    case MESSAGE_OK:
         setcolor(COLOR_GREEN);
         printf("OK");
         setcolor(COLOR_RESET);
         break;
-    case DEBUG_INFO:
+    case MESSAGE_INFO:
         setcolor(COLOR_CYAN);
         printf("INFO");
         setcolor(COLOR_RESET);
         break;
-    case DEBUG_WARN:
+    case MESSAGE_WARN:
         setcolor(COLOR_YELLOW);
         printf("WARN");
         setcolor(COLOR_RESET);
         break;
-    case DEBUG_ERROR:
+    case MESSAGE_ERROR:
         setcolor(COLOR_RED);
         printf("ERROR");
         setcolor(COLOR_RESET);
         break;
-    case DEBUG_PROCESSING:
+    case MESSAGE_PROCESSING:
         setcolor(COLOR_BLUE);
         printf("PROCESS");
         setcolor(COLOR_RESET);
         break;
-    case DEBUG_WAITING:
+    case MESSAGE_WAITING:
         setcolor(COLOR_MAGENTA);
         printf("WAITING");
         setcolor(COLOR_RESET);
@@ -82,7 +87,7 @@ void on_message(int type, char *fmt, ...)
     va_list ap;
 
     // printf("MESSAGE");
-    printf("[");
+    printf("\n[");
     switch (type)
     {
     case MESSAGE_OK:
