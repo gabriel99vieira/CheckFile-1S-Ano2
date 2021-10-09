@@ -87,3 +87,9 @@ int is_regular_file(const char *path)
 
     return 0;
 }
+
+char *file_extension(const char *file)
+{
+    char *pos = strchr(file, '.');
+    return (pos == NULL) ? "" : (pos + 1);
+}

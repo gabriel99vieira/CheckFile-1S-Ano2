@@ -14,13 +14,13 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
-// #include <sys/sysmacros.h>
+#include <sys/sysmacros.h>
 
 #include <ctype.h>
 #include <signal.h>
 #include <fcntl.h>
 #include <stdint.h>
-// #include <dirent.h>
+#include <dirent.h>
 // #include <time.h>
 // #include <assert.h>
 
@@ -29,29 +29,27 @@
 #include "args.h"
 #include "message.h"
 #include "file_helper.h"
+#include "checkfile.h"
 
-/**
- * Application variables
- */
+#define UNABLE_OPEN_FILE 2
+#define UNABLE_CLOSE_FILE 3
+#define LIMIT_EXCEEDED 4
+#define UNABLE_OPEN_DIR 5
+#define UNABLE_CLOSE_DIR 6
+#define UNABLE_START_PROCESS 7
+#define EXECUTION_FAILURE 8
+
 #define MAX_QUEUE 100
-#define MAX_STRING_SIZE 101
+#define MAX_STRING_SIZE 256
 #define TMP_FILE "tmp"
-#define DELETE_TMP_AFTER_USE 0
 
-/**
- * Application errors
- */
-#define ARGUMENT_MISSING 10
-#define ARGUMENT_INCORRECT 11
-#define EMPTY_FILE 12
-#define UNABLE_TO_OPEN_FILE 13
-#define UNABLE_TO_READ_FILE 14
-#define UNABLE_TO_WRITE_FILE 15
-#define UNABLE_TO_CLOSE_FILE 16
-#define UNABLE_TO_START_PROCESS 17
+struct gengetopt_args_info args;
 
-struct gengetopt_args_info args_info;
-char working_directory[MAX_STRING_SIZE];
+int supported_extensions_count = 7;
+const char *supported_extensions[] = {"pdf", "gif", "jpg", "png", "mp4", "zip", "html"};
+
+char queue[MAX_QUEUE][MAX_STRING_SIZE];
+int queue_counter = 0;
 
 int main(int argc, char *argv[])
 {
@@ -59,257 +57,198 @@ int main(int argc, char *argv[])
     (void)argc;
     (void)argv;
 
-    MESSAGE(MESSAGE_INFO, "Checkfile starting.");
-    getcwd(working_directory, sizeof(working_directory));
-    ON_DEBUG(DEBUG_INFO, "Saving working directory. ('%s')", working_directory);
-
-    ON_DEBUG(DEBUG_INFO, "Gengetopt validation.");
-    if (cmdline_parser(argc, argv, &args_info) != 0)
+    if (cmdline_parser(argc, argv, &args) != 0)
     {
         exit(0);
     }
 
-    char queue_files[MAX_QUEUE][MAX_STRING_SIZE];
-    int queue_counter = 0;
-
-    ON_DEBUG(DEBUG_INFO, "Program validation.");
-
-    //* Verify directory argument */
-    if (args_info.dir_given)
+    for (int i = 0; i < MAX_QUEUE; i++)
     {
-        if (!file_exists(args_info.dir_arg))
+        for (int j = 0; j < MAX_STRING_SIZE; j++)
         {
-            ERROR(ARGUMENT_INCORRECT, "Directory does not exist. (%s)", args_info.dir_arg);
+            queue[i][j] = '\0';
         }
-
-        if (!is_directory(args_info.dir_arg))
-        {
-            ERROR(ARGUMENT_INCORRECT, "Make sure '%s' exists.", args_info.dir_arg);
-        }
-
-        chdir(args_info.dir_arg);
-        MESSAGE(MESSAGE_INFO, "Changed working directory to '%s'.", args_info.dir_arg);
     }
 
-    //* Verify if file or batch file is given */
-    if (!(args_info.file_given || args_info.batch_given))
+    if (args.file_given)
     {
-        ERROR(ARGUMENT_MISSING, "Insuficient arguments. (required 'batch' or 'file')");
-    }
-
-    ON_DEBUG(DEBUG_INFO, "A required argument was given.");
-    MESSAGE(MESSAGE_INFO, "Validating input.");
-
-    //* Verify single file input */
-    if (args_info.file_given)
-    {
-        if (!file_exists(args_info.file_arg))
+        int i = 0;
+        while (args.file_arg[i] != NULL)
         {
-            ERROR(ARGUMENT_INCORRECT, "Make sure '%s' exists.", args_info.file_arg);
-        }
-
-        if (!is_regular_file(args_info.file_arg))
-        {
-            ERROR(ARGUMENT_INCORRECT, "Make sure '%s' is a regular file.", args_info.file_arg);
-        }
-
-        strcpy(queue_files[queue_counter], args_info.file_arg);
-        queue_counter++;
-        ON_DEBUG(DEBUG_INFO, "Input file is valid and is added to the queue");
-    }
-
-    //* Verify batch file input */
-    if (args_info.batch_given)
-    {
-        if (!file_exists(args_info.batch_arg))
-        {
-            ERROR(ARGUMENT_INCORRECT, "Make sure '%s' exists.", args_info.file_arg);
-        }
-
-        if (!is_regular_file(args_info.batch_arg))
-        {
-            ERROR(ARGUMENT_INCORRECT, "Make sure '%s' is a file and exists.", args_info.batch_arg);
-        }
-
-        ON_DEBUG(DEBUG_INFO, "Batch input file is valid. Processing contents.");
-
-        int fd = open_file(args_info.batch_arg, O_RDONLY);
-        int fs = file_size(fd);
-        char c;
-        int readed = 0;
-
-        int linebuffer_counter = 0;
-        char linebuffer[fs + 2];
-        linebuffer[fs] = '\0';
-
-        ON_DEBUG(DEBUG_INFO, "Starting to read batch file contents.");
-        while ((readed = read(fd, &c, 1)) > 0)
-        {
-            if (c == '\r')
+            if (file_exists(args.file_arg[i]) && is_regular_file(args.file_arg[i]))
             {
-                continue;
-            }
-
-            //* End a line
-            if (c == '\n' || c == '\0')
-            {
-                // Make sure the line ends
-                linebuffer[linebuffer_counter] = '\0';
-                linebuffer_counter = 0;
-
-                // Confirm that the line has text
-                if (strlen(linebuffer) > 0)
+                if (strlen(args.file_arg[i]) >= MAX_STRING_SIZE)
                 {
-                    // And does not exceed the MAX_STRING_SIZE
-                    if (strlen(linebuffer) < MAX_STRING_SIZE)
-                    {
-                        if (!file_exists(linebuffer))
-                        {
-                            MESSAGE(MESSAGE_WARN, "'%s' does not exist. Skipping.", linebuffer);
-                            continue;
-                        }
-
-                        if (!is_regular_file(linebuffer))
-                        {
-                            MESSAGE(MESSAGE_WARN, "'%s' is not a regular file. Skipping.", linebuffer);
-                            continue;
-                        }
-
-                        strcpy(queue_files[queue_counter], &linebuffer[0]);
-                        queue_counter++;
-                        ON_DEBUG(DEBUG_INFO, "Found line with ( %s )", linebuffer);
-                    }
-                    else
-                    {
-                        MESSAGE(MESSAGE_WARN, "Path limit (%d) exceded skipping '%s'", MAX_STRING_SIZE, linebuffer);
-                    }
+                    char msg[MAX_STRING_SIZE];
+                    strcpy(msg, args.file_arg[i]);
+                    cmdline_parser_free(&args);
+                    ERROR(UNABLE_OPEN_FILE, "max string size exceded in '%s'", msg);
                 }
+
+                strcpy(queue[queue_counter], args.file_arg[i]);
+                queue_counter++;
+                ON_DEBUG(MESSAGE_INFO, "Added new file to queue ( %s )", args.file_arg[i]);
             }
             else
             {
-                // Adds to the buffer while no line ends
-                linebuffer[linebuffer_counter] = c;
-                linebuffer_counter++;
+                char msg[MAX_STRING_SIZE];
+                strcpy(msg, args.file_arg[i]);
+                cmdline_parser_free(&args);
+                ERROR(UNABLE_OPEN_FILE, "cannot open file '%s'", msg);
             }
+            i++;
         }
+    }
 
-        //* File ended
-        if (readed == 0)
+    if (args.batch_given)
+    {
+        if (file_exists(args.batch_arg) && is_regular_file(args.batch_arg))
         {
-            linebuffer[linebuffer_counter] = '\0';
-            linebuffer_counter = 0;
+            int fd = open_file(args.batch_arg, O_RDONLY), fs = file_size(fd), readed = 0, linebuffer_counter = 0;
+            char linebuffer[fs + 2], c;
+            linebuffer[fs] = '\0';
 
-            if (strlen(linebuffer) > 0)
+            while ((readed = read(fd, &c, 1)) >= 0)
             {
-                if (strlen(linebuffer) < MAX_STRING_SIZE)
+                if (c == '\r')
                 {
-                    if (!file_exists(linebuffer))
-                    {
-                        MESSAGE(MESSAGE_WARN, "'%s' does not exist. Skipping.", linebuffer);
-                    }
+                    continue;
+                }
 
-                    if (!is_regular_file(linebuffer))
-                    {
-                        MESSAGE(MESSAGE_WARN, "'%s' is not a regular file. Skipping.", linebuffer);
-                    }
+                //* End a line
+                if (c == '\n' || c == '\0')
+                {
+                    // Make sure the line ends
+                    linebuffer[linebuffer_counter] = '\0';
+                    linebuffer_counter = 0;
 
-                    strcpy(queue_files[queue_counter], &linebuffer[0]);
-                    queue_counter++;
-                    ON_DEBUG(DEBUG_INFO, "Found line with ( %s )", linebuffer);
+                    // Confirm that the line has text
+                    if (strlen(linebuffer) > 0)
+                    {
+                        // And does not exceed the MAX_STRING_SIZE
+                        if (strlen(linebuffer) < MAX_STRING_SIZE)
+                        {
+                            if (!file_exists(linebuffer) || !is_regular_file(linebuffer))
+                            {
+                                close(fd);
+                                cmdline_parser_free(&args);
+                                ERROR(UNABLE_OPEN_FILE, "cannot open file '%s'", linebuffer);
+                            }
+
+                            strcpy(queue[queue_counter], linebuffer);
+                            queue_counter++;
+                            ON_DEBUG(MESSAGE_INFO, "Added new file to queue ( %s )", linebuffer);
+                        }
+                        else
+                        {
+                            close(fd);
+                            cmdline_parser_free(&args);
+                            ERROR(UNABLE_OPEN_FILE, "max string size exceded in '%s'", linebuffer);
+                        }
+                    }
                 }
                 else
                 {
-                    ON_DEBUG(DEBUG_WARN, "Path limit (%d) exceded skipping '%s'", MAX_STRING_SIZE, linebuffer);
+                    // Adds to the buffer while no line ends
+                    linebuffer[linebuffer_counter] = c;
+                    linebuffer_counter++;
+                }
+
+                if (readed == 0)
+                {
+                    break;
                 }
             }
         }
-
-        int is_closed = close(fd);
-
-        if (is_closed == -1)
+        else
         {
-            ERROR(UNABLE_TO_CLOSE_FILE, "Unable to close batch file.");
+            char msg[MAX_STRING_SIZE];
+            strcpy(msg, args.batch_arg);
+            cmdline_parser_free(&args);
+            ERROR(UNABLE_OPEN_FILE, "cannot open file '%s'", args.batch_arg);
+        }
+    }
+
+    if (args.dir_given)
+    {
+        int len_dir = strlen(args.dir_arg);
+        char string_dir[len_dir + 2];
+        strcpy(string_dir, args.dir_arg);
+
+        if (string_dir[len_dir] != '/')
+        {
+            string_dir[len_dir] = '/';
+            string_dir[len_dir + 1] = '\0';
         }
 
-        ON_DEBUG(DEBUG_INFO, "Closed batch file.");
+        DIR *directory;
+        struct dirent *entity;
+        directory = opendir(string_dir);
+        if (directory == NULL)
+        {
+            cmdline_parser_free(&args);
+            ERROR(UNABLE_OPEN_DIR, "cannot open dir '%s'", string_dir);
+        }
+        while ((entity = readdir(directory)) != NULL)
+        {
+            // if (entity->d_type == DT_REG) // Sometimes it doesnt work...
+            // https://stackoverflow.com/questions/5114396/dt-reg-undeclared-first-use-in-this-function-and-std-c99
+            if (entity->d_type == 8)
+            {
+                char full[MAX_STRING_SIZE];
+                sprintf(full, "%s%s", string_dir, entity->d_name);
+
+                if (strlen(full) >= MAX_STRING_SIZE)
+                {
+                    closedir(directory);
+                    cmdline_parser_free(&args);
+                    ERROR(UNABLE_OPEN_FILE, "max string size exceded in '%s'", full);
+                }
+
+                strcpy(queue[queue_counter], full);
+                queue_counter++;
+                ON_DEBUG(MESSAGE_INFO, "Added new file to queue ( %s )", full);
+            }
+        }
+        closedir(directory);
     }
 
-    ON_DEBUG(DEBUG_INFO, "Freed up gengetopt struct.");
-    cmdline_parser_free(&args_info);
+    cmdline_parser_free(&args);
 
-    if (queue_counter == 0)
-    {
-        ERROR(EMPTY_FILE, "No valid paths were found in the input.");
-    }
-
-    MESSAGE(MESSAGE_OK, "Found %d files to check.", queue_counter);
-
-    ON_DEBUG(DEBUG_OK, "Ready to start processing.");
-    // New process
     pid_t pid = fork();
     if (pid == -1)
     {
-        ERROR(UNABLE_TO_START_PROCESS, "Unable to start new auxiliar process.");
+        ERROR(UNABLE_START_PROCESS, "Unable to start new process on %d", getpid());
     }
 
     if (pid == 0)
     {
-        ON_DEBUG(DEBUG_PROCESSING, "[%d] Process children executing.", getpid());
-
-        ON_DEBUG(DEBUG_PROCESSING, "[%d] Creating auxiliar file to redirect output.", getpid());
         int fd = open(TMP_FILE, O_CREAT | O_RDWR | O_TRUNC, 0644);
         if (fd == -1)
         {
-            ERROR(UNABLE_TO_OPEN_FILE, "[%d] Unable to create/open temporary file.", getpid());
+            ERROR(UNABLE_OPEN_FILE, "[%d] Unable to create/open temporary file.", getpid());
         }
         dup2(fd, STDOUT_FILENO);
         close(fd);
 
         char *exec_arguments[MAX_STRING_SIZE];
         exec_arguments[0] = "file";
-        exec_arguments[1] = "--mime-type";
+        exec_arguments[1] = "--extension";
         int tmp_counter = 2;
 
         for (int i = 0; i < queue_counter; i++)
         {
-            exec_arguments[i + tmp_counter] = queue_files[i];
+            exec_arguments[i + tmp_counter] = queue[i];
         }
         tmp_counter += queue_counter;
         exec_arguments[tmp_counter] = NULL;
 
-        if (DELETE_TMP_AFTER_USE)
-        {
-            unlink(TMP_FILE);
-        }
+        // unlink(TMP_FILE);
         execvp("file", exec_arguments);
-        ERROR(UNABLE_TO_START_PROCESS, "[%d] Process was terminated unexpectedly.", getpid());
+        ERROR(EXECUTION_FAILURE, "Process was unable to execute commands.", getpid());
     }
 
-    ON_DEBUG(DEBUG_WAITING, "Parent process waiting for child.");
     waitpid(pid, NULL, 0);
 
-    // Happy Birthday!
-    sleep(1);
-
-    ON_DEBUG(DEBUG_WAITING, "Parent process resuming.");
-
-    int fd = open(TMP_FILE, O_CREAT | O_RDWR, 0644);
-    if (fd == -1)
-    {
-        ERROR(UNABLE_TO_OPEN_FILE, "Unable to create/open temporary file.");
-    }
-    fsync(fd);
-
-    int readed = 0;
-    char c;
-    while ((readed = read(fd, &c, 1)))
-    {
-        printf("%c", c);
-        // TODO Finish
-    }
-
-    close(fd);
-
-    printf("\n");
     return EXIT_SUCCESS;
 }
