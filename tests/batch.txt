@@ -1,0 +1,4 @@
+debug.o
+colors.o
+args.o
+nopdf.pdf
