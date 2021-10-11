@@ -152,3 +152,26 @@ void on_message(int type, char *fmt, ...)
     va_end(ap);
     printf("\n");
 }
+
+void on_error(int err, char *fmt, ...)
+{
+    /* Removing unused variable error */
+    (void)fmt;
+
+    errno = err;
+
+    va_list ap;
+
+    printf("\n[");
+    setcolor(COLOR_RED);
+    printf("ERROR");
+    setcolor(COLOR_RESET);
+    printf("]: ");
+
+    va_start(ap, fmt);
+    vfprintf(stdout, fmt, ap);
+    va_end(ap);
+    printf(" - %s", strerror(errno));
+    printf("\n");
+    exit(EXIT_FAILURE);
+}

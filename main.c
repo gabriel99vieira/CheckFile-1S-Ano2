@@ -32,14 +32,6 @@
 #include "string_aux.h"
 #include "checkfile.h"
 
-#define UNABLE_OPEN_FILE 2
-#define UNABLE_CLOSE_FILE 3
-#define LIMIT_EXCEEDED 4
-#define UNABLE_OPEN_DIR 5
-#define UNABLE_CLOSE_DIR 6
-#define UNABLE_START_PROCESS 7
-#define EXECUTION_FAILURE 8
-
 #define MAX_QUEUE 100
 #define MAX_STRING_SIZE 256
 #define TMP_FILE "tmp"
@@ -72,7 +64,7 @@ int main(int argc, char *argv[])
         }
     }
 
-    MESSAGE(MESSAGE_PROCESSING, "Processing...");
+    MESSAGE(MESSAGE_PROCESSING, "Starting...");
     /*
         Processing Magic
         To test Signals
@@ -82,186 +74,69 @@ int main(int argc, char *argv[])
     // File argument
     if (args.file_given)
     {
+        MESSAGE(MESSAGE_INFO, "Analizing...");
+
         int i = 0;
         while (args.file_arg[i] != NULL)
         {
-            if (file_exists(args.file_arg[i]) && is_regular_file(args.file_arg[i]))
+            if (!file_exists(args.file_arg[i]))
             {
-                if (strlen(args.file_arg[i]) >= MAX_STRING_SIZE)
-                {
-                    ON_DEBUG(UNABLE_OPEN_FILE, "max string size exceded in '%s'", args.file_arg[i]);
-                    MESSAGE(MESSAGE_ERROR, "cannot open file '%s' - %s", strerror(ENAMETOOLONG));
-                }
-                else
-                {
-                    strcpy(files_queue[queue_counter], args.file_arg[i]);
-                    queue_counter++;
-                    ON_DEBUG(MESSAGE_INFO, "Added new file to files_queue ( %s )", args.file_arg[i]);
-                }
+                ERROR_FILE_NOT_EXISTS(args.file_arg[i]);
+            }
+
+            if (!is_regular_file(args.file_arg[i]))
+            {
+                ERROR_INCORRECT_FILE_ARG(args.file_arg[i]);
+            }
+
+            if (strlen(args.file_arg[i]) > MAX_STRING_SIZE)
+            {
+                MSG_FILE_TOOLONG(args.file_arg[i]);
             }
             else
             {
-                ON_DEBUG(UNABLE_OPEN_FILE, "cannot open file '%s'", args.file_arg[i]);
-                MESSAGE(MESSAGE_ERROR, "cannot open file '%s' - %s", strerror(ENOENT));
+                strcpy(files_queue[queue_counter], args.file_arg[i]);
+                queue_counter++;
+                ON_DEBUG(MESSAGE_INFO, "Added new file to files_queue ( %s )", args.file_arg[i]);
             }
+
             i++;
         }
     }
 
     if (args.batch_given)
     {
-        if (file_exists(args.batch_arg) && is_regular_file(args.batch_arg))
+
+        if (!args.dir_given && !args.file_given)
         {
-            int fd = open_file(args.batch_arg, O_RDONLY), fs = file_size(fd), readed = 0, linebuffer_counter = 0;
-            char linebuffer[fs + 2], c;
-            linebuffer[fs] = '\0';
-
-            while ((readed = read(fd, &c, 1)) >= 0)
-            {
-                if (c == '\r')
-                {
-                    continue;
-                }
-
-                //* End a line
-                if (c == '\n' || c == '\0' || readed == 0)
-                {
-                    // Make sure the line ends
-                    linebuffer[linebuffer_counter] = '\0';
-                    linebuffer_counter = 0;
-
-                    // Confirm that the line has text
-                    if (strlen(linebuffer) > 0)
-                    {
-                        // And does not exceed the MAX_STRING_SIZE
-                        if (strlen(linebuffer) < MAX_STRING_SIZE)
-                        {
-                            if (file_exists(linebuffer) && is_regular_file(linebuffer))
-                            {
-                                strcpy(files_queue[queue_counter], linebuffer);
-                                queue_counter++;
-                                ON_DEBUG(MESSAGE_INFO, "Added new file to files_queue ( %s )", linebuffer);
-                            }
-                            else
-                            {
-                                MSG_ENOENT(linebuffer);
-                            }
-                        }
-                        else
-                        {
-                            MSG_NAMETOOLONG(linebuffer);
-                            continue;
-                        }
-                    }
-                }
-                else
-                {
-                    // Adds to the buffer while no line ends
-                    linebuffer[linebuffer_counter] = c;
-                    linebuffer_counter++;
-                }
-
-                if (readed == 0)
-                {
-                    break;
-                }
-            }
+            MESSAGE(MESSAGE_INFO, "Analizing files listed in '%s'...", args.batch_arg);
         }
-        else
+
+        if (strcmp(file_extension(args.batch_arg), "txt") != 0)
         {
             char msg[MAX_STRING_SIZE];
             strcpy(msg, args.batch_arg);
             cmdline_parser_free(&args);
-            ERROR(UNABLE_OPEN_FILE, "cannot open file '%s'", msg);
-        }
-    }
-
-    if (args.dir_given)
-    {
-        int len_dir = strlen(args.dir_arg);
-        char string_dir[len_dir + 2];
-        strcpy(string_dir, args.dir_arg);
-
-        if (string_dir[len_dir - 1] != '/')
-        {
-            string_dir[len_dir] = '/';
-            string_dir[len_dir + 1] = '\0';
+            ERROR_INCORRECT_FILE_ARG(msg);
         }
 
-        DIR *directory;
-        struct dirent *entity;
-        directory = opendir(string_dir);
-        if (directory == NULL)
+        if (!file_exists(args.batch_arg))
         {
+            char msg[MAX_STRING_SIZE];
+            strcpy(msg, args.batch_arg);
             cmdline_parser_free(&args);
-            ERROR(UNABLE_OPEN_DIR, "cannot open dir '%s'", string_dir);
+            ERROR_FILE_NOT_EXISTS(msg);
         }
-        while ((entity = readdir(directory)) != NULL)
+
+        if (!is_regular_file(args.batch_arg))
         {
-            // if (entity->d_type == DT_REG) // Sometimes it doesnt work...
-            // https://stackoverflow.com/questions/5114396/dt-reg-undeclared-first-use-in-this-function-and-std-c99
-            if (entity->d_type == 8)
-            {
-                char full[MAX_STRING_SIZE];
-                sprintf(full, "%s%s", string_dir, entity->d_name);
-
-                if (strlen(full) >= MAX_STRING_SIZE)
-                {
-                    MSG_NAMETOOLONG(full);
-                }
-                else
-                {
-                    strcpy(files_queue[queue_counter], full);
-                    queue_counter++;
-                    ON_DEBUG(MESSAGE_INFO, "Added new file to files_queue ( %s )", full);
-                }
-            }
-        }
-        closedir(directory);
-    }
-
-    cmdline_parser_free(&args);
-
-    pid_t pid = fork();
-    if (pid == -1)
-    {
-        ERROR(UNABLE_START_PROCESS, "Unable to start new process on %d", getpid());
-    }
-
-    if (pid == 0)
-    {
-        char *exec_arguments[MAX_STRING_SIZE];
-        exec_arguments[0] = "file";
-        exec_arguments[1] = "--mime-type";
-        int tmp_counter = 2;
-
-        for (int i = 0; i < queue_counter; i++)
-        {
-            exec_arguments[i + tmp_counter] = files_queue[i];
-        }
-        tmp_counter += queue_counter;
-        exec_arguments[tmp_counter] = NULL;
-
-        int fd = open(TMP_FILE, O_CREAT | O_RDWR | O_TRUNC, 0644);
-        if (fd == -1)
-        {
-            ERROR(UNABLE_OPEN_FILE, "[%d] Unable to create/open temporary file.", getpid());
+            char msg[MAX_STRING_SIZE];
+            strcpy(msg, args.batch_arg);
+            cmdline_parser_free(&args);
+            ERROR_INCORRECT_FILE_ARG(msg);
         }
 
-        // Copy of stdout to file
-        dup2(fd, STDOUT_FILENO);
-        close(fd);
-        execvp("file", exec_arguments);
-
-        ERROR(EXECUTION_FAILURE, "Process was unable to execute commands.");
-    }
-
-    waitpid(pid, NULL, 0);
-
-    // * Processing files_queue
-    if (file_exists(TMP_FILE) && is_regular_file(TMP_FILE))
-    {
-        int fd = open_file(TMP_FILE, O_RDONLY), fs = file_size(fd), readed = 0, linebuffer_counter = 0;
+        int fd = open_file(args.batch_arg, O_RDONLY), fs = file_size(fd), readed = 0, linebuffer_counter = 0;
         char linebuffer[fs + 2], c;
         linebuffer[fs] = '\0';
 
@@ -282,45 +157,28 @@ int main(int argc, char *argv[])
                 // Confirm that the line has text
                 if (strlen(linebuffer) > 0)
                 {
-                    // And does not exceed the MAX_STRING_SIZE
-                    char file[MAX_QUEUE];
-                    char ext[MAX_QUEUE];
-                    char type[MAX_QUEUE];
-                    strcut(file,
-                           linebuffer,
-                           0,
-                           strlen(linebuffer) - strlen(strchr(linebuffer, ' ')) - 2);
-                    strcut(ext,
-                           linebuffer,
-                           strlen(linebuffer) - strlen(strchr(linebuffer, '.')) + 1,
-                           strlen(linebuffer) - strlen(strchr(linebuffer, ':')) - 1);
-                    strcut(type,
-                           linebuffer,
-                           strlen(linebuffer) - strlen(strrchr(linebuffer, '/')) + 1,
-                           strlen(linebuffer));
-
-                    if (!array_has_string(supported_extensions, supported_extensions_count, ext))
+                    // Checks if the record exceeds the MAX_STRING_SIZE
+                    if (strlen(linebuffer) > MAX_STRING_SIZE)
                     {
-                        MESSAGE(MESSAGE_ERROR, "%s: '%s' extension not supported", file, ext);
+                        MSG_FILE_TOOLONG(linebuffer);
                         continue;
                     }
 
-                    // Just for the extra output for the file
-                    if (strlen(linebuffer) < (MAX_STRING_SIZE + 20))
+                    if (!file_exists(linebuffer))
                     {
-                        if (check(type, ext))
-                        {
-                            MESSAGE(MESSAGE_OK, "'%s': extension '%s' matches file type '%s'", file, ext, type);
-                        }
-                        else
-                        {
-                            MESSAGE(MESSAGE_MISMATCH, "'%s': extension '%s', file type '%s'", file, ext, type);
-                        }
+                        MSG_FILE_NOT_EXISTS(linebuffer);
+                        continue;
                     }
-                    else
+
+                    if (!is_regular_file(linebuffer))
                     {
-                        MESSAGE(MESSAGE_ERROR, "max string size exceded in '%s' - %s", file, strerror(ENAMETOOLONG));
+                        MSG_INCORRECT_FILE_ARG(linebuffer);
+                        continue;
                     }
+
+                    strcpy(files_queue[queue_counter], linebuffer);
+                    queue_counter++;
+                    ON_DEBUG(MESSAGE_INFO, "Added new file to files_queue ( %s )", linebuffer);
                 }
             }
             else
@@ -336,9 +194,184 @@ int main(int argc, char *argv[])
             }
         }
     }
-    else
+
+    if (args.dir_given)
     {
-        ERROR(UNABLE_OPEN_FILE, "cannot open file '%s' - %s", TMP_FILE, strerror(ENOENT));
+        if (!args.file_given && !args.batch_given)
+        {
+            MESSAGE(MESSAGE_INFO, "Analizing files listed in '%s' directory...", args.dir_arg);
+        }
+
+        int len_dir = strlen(args.dir_arg);
+        char string_dir[len_dir + 2];
+        strcpy(string_dir, args.dir_arg);
+
+        if (string_dir[len_dir - 1] != '/')
+        {
+            string_dir[len_dir] = '/';
+            string_dir[len_dir + 1] = '\0';
+        }
+
+        DIR *directory;
+        struct dirent *entity;
+        directory = opendir(string_dir);
+        if (directory == NULL)
+        {
+            cmdline_parser_free(&args);
+            ERROR_CANT_OPEN_DIR(string_dir);
+        }
+        while ((entity = readdir(directory)) != NULL)
+        {
+            // if (entity->d_type == DT_REG) // Sometimes it doesnt work...
+            // https://stackoverflow.com/questions/5114396/dt-reg-undeclared-first-use-in-this-function-and-std-c99
+            if (entity->d_type == 8)
+            {
+                char full[MAX_STRING_SIZE];
+                sprintf(full, "%s%s", string_dir, entity->d_name);
+
+                if (strlen(full) > MAX_STRING_SIZE)
+                {
+                    cmdline_parser_free(&args);
+                    MSG_FILE_TOOLONG(full);
+                }
+                else
+                {
+                    strcpy(files_queue[queue_counter], full);
+                    queue_counter++;
+                    ON_DEBUG(MESSAGE_INFO, "Added new file to files_queue ( %s )", full);
+                }
+            }
+        }
+        closedir(directory);
+    }
+
+    cmdline_parser_free(&args);
+
+    pid_t pid = fork();
+    if (pid == -1)
+    {
+        ERROR_CANT_START_PROC(getpid());
+    }
+
+    if (pid == 0)
+    {
+        char *exec_arguments[MAX_STRING_SIZE];
+        exec_arguments[0] = "file";
+        exec_arguments[1] = "--mime-type";
+        int tmp_counter = 2;
+
+        for (int i = 0; i < queue_counter; i++)
+        {
+            exec_arguments[i + tmp_counter] = files_queue[i];
+        }
+        tmp_counter += queue_counter;
+        exec_arguments[tmp_counter] = NULL;
+
+        int fd = open(TMP_FILE, O_CREAT | O_RDWR | O_TRUNC, 0644);
+        if (fd == -1)
+        {
+            ERROR(EXIT_FAILURE, "[%d] Unable to create/open temporary file.", getpid());
+        }
+
+        // Copy of stdout to file
+        dup2(fd, STDOUT_FILENO);
+        close(fd);
+        execvp("file", exec_arguments);
+
+        ERROR(EXIT_FAILURE, "Process was unable to execute commands.");
+    }
+
+    waitpid(pid, NULL, 0);
+
+    // * Processing files_queue
+    if (!file_exists(TMP_FILE))
+    {
+        ERROR_FILE_NOT_EXISTS(TMP_FILE);
+    }
+
+    if (!is_regular_file(TMP_FILE))
+    {
+        ERROR_INCORRECT_FILE_ARG(TMP_FILE);
+    }
+
+    int fd = open_file(TMP_FILE, O_RDONLY), fs = file_size(fd), readed = 0, linebuffer_counter = 0;
+    char linebuffer[fs + 2], c;
+    linebuffer[fs] = '\0';
+
+    if (fd == -1)
+    {
+        ERROR_CANT_OPEN_FILE(TMP_FILE);
+    }
+
+    while ((readed = read(fd, &c, 1)) >= 0)
+    {
+        if (c == '\r')
+        {
+            continue;
+        }
+
+        //* End a line
+        if (c == '\n' || c == '\0' || readed == 0)
+        {
+            // Make sure the line ends
+            linebuffer[linebuffer_counter] = '\0';
+            linebuffer_counter = 0;
+
+            // Confirm that the line has text
+            if (strlen(linebuffer) > 0)
+            {
+                // And does not exceed the MAX_STRING_SIZE
+                char file[MAX_QUEUE];
+                char ext[MAX_QUEUE];
+                char type[MAX_QUEUE];
+                strcut(file,
+                       linebuffer,
+                       0,
+                       strlen(linebuffer) - strlen(strchr(linebuffer, ' ')) - 2);
+                strcut(ext,
+                       linebuffer,
+                       strlen(linebuffer) - strlen(strchr(linebuffer, '.')) + 1,
+                       strlen(linebuffer) - strlen(strchr(linebuffer, ':')) - 1);
+                strcut(type,
+                       linebuffer,
+                       strlen(linebuffer) - strlen(strrchr(linebuffer, '/')) + 1,
+                       strlen(linebuffer));
+
+                if (!array_has_string(supported_extensions, supported_extensions_count, ext))
+                {
+                    MESSAGE(MESSAGE_ERROR, "'%s': type '%s' extension not supported", file, ext);
+                    continue;
+                }
+
+                // Just for the extra output for the file
+                if (strlen(linebuffer) < (MAX_STRING_SIZE + 20))
+                {
+                    if (check(type, ext))
+                    {
+                        MESSAGE(MESSAGE_OK, "'%s': extension '%s' matches file type '%s'", file, ext, type);
+                    }
+                    else
+                    {
+                        MESSAGE(MESSAGE_MISMATCH, "'%s': extension '%s', file type '%s'", file, ext, type);
+                    }
+                }
+                else
+                {
+                    MESSAGE(MESSAGE_ERROR, "max string size exceded in '%s' - %s", file, strerror(ENAMETOOLONG));
+                }
+            }
+        }
+        else
+        {
+            // Adds to the buffer while no line ends
+            linebuffer[linebuffer_counter] = c;
+            linebuffer_counter++;
+        }
+
+        if (readed == 0)
+        {
+            break;
+        }
     }
 
     printf("\n");
