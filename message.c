@@ -57,6 +57,16 @@ void on_debug(int type, char *fmt, ...)
         printf("WAITING");
         setcolor(COLOR_RESET);
         break;
+    case MESSAGE_MISMATCH:
+        setcolor(COLOR_MAGENTA);
+        printf("MISMATCH");
+        setcolor(COLOR_RESET);
+        break;
+    case MESSAGE_SUMMARY:
+        setcolor(COLOR_YELLOW);
+        printf("MISMATCH");
+        setcolor(COLOR_RESET);
+        break;
 
     default:
         printf("OTHER");
@@ -118,6 +128,16 @@ void on_message(int type, char *fmt, ...)
     case MESSAGE_WAITING:
         setcolor(COLOR_MAGENTA);
         printf("WAITING");
+        setcolor(COLOR_RESET);
+        break;
+    case MESSAGE_MISMATCH:
+        setcolor(COLOR_MAGENTA);
+        printf("MISMATCH");
+        setcolor(COLOR_RESET);
+        break;
+    case MESSAGE_SUMMARY:
+        setcolor(COLOR_YELLOW);
+        printf("MISMATCH");
         setcolor(COLOR_RESET);
         break;
 

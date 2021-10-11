@@ -24,7 +24,7 @@ PROGRAM=checkfile
 PROGRAM_OPT=args
 
 # Object files required to build the executable
-PROGRAM_OBJS=main.o debug.o memory.o $(PROGRAM_OPT).o message.o colors.o file_helper.o checkfile.o
+PROGRAM_OBJS=main.o debug.o memory.o $(PROGRAM_OPT).o message.o colors.o file_helper.o string_aux.o
 
 # Clean and all are not files
 .PHONY: clean all docs indent debugon
@@ -53,7 +53,7 @@ debug.o: debug.c debug.h
 memory.o: memory.c memory.h
 message.o: message.c message.h
 file_helper.o: file_helper.c file_helper.h
-checkfile.o: checkfile.c checkfile.h
+string_aux.o: string_aux.c string_aux.h
 
 # disable warnings from gengetopt generated files
 $(PROGRAM_OPT).o: $(PROGRAM_OPT).c $(PROGRAM_OPT).h

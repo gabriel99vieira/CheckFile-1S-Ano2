@@ -10,6 +10,8 @@ void on_message(int type, char *fmt, ...);
 #define MESSAGE_ERROR 4
 #define MESSAGE_PROCESSING 5
 #define MESSAGE_WAITING 6
+#define MESSAGE_MISMATCH 7
+#define MESSAGE_SUMMARY 8
 
 /**
  * @see on_debug() 

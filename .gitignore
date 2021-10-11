@@ -50,11 +50,16 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
+
+# Extras
 args.c
 args.h
 checkfile
 .vscode/c_cpp_properties.json
 core
-teste.txt
-nopdf.pdf
 tmp
+tests/nopdf.pdf
+tests/noimage.jpg
+tests/batch.txt
+tests/noimage.jpg
+tests/batch.txt

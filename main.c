@@ -29,7 +29,7 @@
 #include "args.h"
 #include "message.h"
 #include "file_helper.h"
-#include "checkfile.h"
+#include "string_aux.h"
 
 #define UNABLE_OPEN_FILE 2
 #define UNABLE_CLOSE_FILE 3
@@ -48,7 +48,7 @@ struct gengetopt_args_info args;
 int supported_extensions_count = 7;
 const char *supported_extensions[] = {"pdf", "gif", "jpg", "png", "mp4", "zip", "html"};
 
-char queue[MAX_QUEUE][MAX_STRING_SIZE];
+char files_queue[MAX_QUEUE][MAX_STRING_SIZE];
 int queue_counter = 0;
 
 int main(int argc, char *argv[])
@@ -62,14 +62,16 @@ int main(int argc, char *argv[])
         exit(0);
     }
 
+    // Clean queue
     for (int i = 0; i < MAX_QUEUE; i++)
     {
         for (int j = 0; j < MAX_STRING_SIZE; j++)
         {
-            queue[i][j] = '\0';
+            files_queue[i][j] = '\0';
         }
     }
 
+    // File argument
     if (args.file_given)
     {
         int i = 0;
@@ -79,22 +81,20 @@ int main(int argc, char *argv[])
             {
                 if (strlen(args.file_arg[i]) >= MAX_STRING_SIZE)
                 {
-                    char msg[MAX_STRING_SIZE];
-                    strcpy(msg, args.file_arg[i]);
-                    cmdline_parser_free(&args);
-                    ERROR(UNABLE_OPEN_FILE, "max string size exceded in '%s'", msg);
+                    ON_DEBUG(UNABLE_OPEN_FILE, "max string size exceded in '%s'", args.file_arg[i]);
+                    MESSAGE(MESSAGE_ERROR, "cannot open file '%s' - %s", strerror(ENAMETOOLONG));
                 }
-
-                strcpy(queue[queue_counter], args.file_arg[i]);
-                queue_counter++;
-                ON_DEBUG(MESSAGE_INFO, "Added new file to queue ( %s )", args.file_arg[i]);
+                else
+                {
+                    strcpy(files_queue[queue_counter], args.file_arg[i]);
+                    queue_counter++;
+                    ON_DEBUG(MESSAGE_INFO, "Added new file to files_queue ( %s )", args.file_arg[i]);
+                }
             }
             else
             {
-                char msg[MAX_STRING_SIZE];
-                strcpy(msg, args.file_arg[i]);
-                cmdline_parser_free(&args);
-                ERROR(UNABLE_OPEN_FILE, "cannot open file '%s'", msg);
+                ON_DEBUG(UNABLE_OPEN_FILE, "cannot open file '%s'", args.file_arg[i]);
+                MESSAGE(MESSAGE_ERROR, "cannot open file '%s' - %s", strerror(ENOENT));
             }
             i++;
         }
@@ -116,7 +116,7 @@ int main(int argc, char *argv[])
                 }
 
                 //* End a line
-                if (c == '\n' || c == '\0')
+                if (c == '\n' || c == '\0' || readed == 0)
                 {
                     // Make sure the line ends
                     linebuffer[linebuffer_counter] = '\0';
@@ -128,22 +128,21 @@ int main(int argc, char *argv[])
                         // And does not exceed the MAX_STRING_SIZE
                         if (strlen(linebuffer) < MAX_STRING_SIZE)
                         {
-                            if (!file_exists(linebuffer) || !is_regular_file(linebuffer))
+                            if (file_exists(linebuffer) && is_regular_file(linebuffer))
                             {
-                                close(fd);
-                                cmdline_parser_free(&args);
-                                ERROR(UNABLE_OPEN_FILE, "cannot open file '%s'", linebuffer);
+                                strcpy(files_queue[queue_counter], linebuffer);
+                                queue_counter++;
+                                ON_DEBUG(MESSAGE_INFO, "Added new file to files_queue ( %s )", linebuffer);
                             }
-
-                            strcpy(queue[queue_counter], linebuffer);
-                            queue_counter++;
-                            ON_DEBUG(MESSAGE_INFO, "Added new file to queue ( %s )", linebuffer);
+                            else
+                            {
+                                MESSAGE(MESSAGE_ERROR, "cannot open file '%s' - %s", linebuffer, strerror(ENOENT));
+                            }
                         }
                         else
                         {
-                            close(fd);
-                            cmdline_parser_free(&args);
-                            ERROR(UNABLE_OPEN_FILE, "max string size exceded in '%s'", linebuffer);
+                            MESSAGE(MESSAGE_ERROR, "max string size exceded in '%s' - %s", linebuffer, strerror(ENAMETOOLONG));
+                            continue;
                         }
                     }
                 }
@@ -165,7 +164,7 @@ int main(int argc, char *argv[])
             char msg[MAX_STRING_SIZE];
             strcpy(msg, args.batch_arg);
             cmdline_parser_free(&args);
-            ERROR(UNABLE_OPEN_FILE, "cannot open file '%s'", args.batch_arg);
+            ERROR(UNABLE_OPEN_FILE, "cannot open file '%s'", msg);
         }
     }
 
@@ -175,7 +174,7 @@ int main(int argc, char *argv[])
         char string_dir[len_dir + 2];
         strcpy(string_dir, args.dir_arg);
 
-        if (string_dir[len_dir] != '/')
+        if (string_dir[len_dir - 1] != '/')
         {
             string_dir[len_dir] = '/';
             string_dir[len_dir + 1] = '\0';
@@ -200,14 +199,14 @@ int main(int argc, char *argv[])
 
                 if (strlen(full) >= MAX_STRING_SIZE)
                 {
-                    closedir(directory);
-                    cmdline_parser_free(&args);
-                    ERROR(UNABLE_OPEN_FILE, "max string size exceded in '%s'", full);
+                    MESSAGE(MESSAGE_ERROR, "max string size exceded in '%s' - %s", full, strerror(ENAMETOOLONG));
                 }
-
-                strcpy(queue[queue_counter], full);
-                queue_counter++;
-                ON_DEBUG(MESSAGE_INFO, "Added new file to queue ( %s )", full);
+                else
+                {
+                    strcpy(files_queue[queue_counter], full);
+                    queue_counter++;
+                    ON_DEBUG(MESSAGE_INFO, "Added new file to files_queue ( %s )", full);
+                }
             }
         }
         closedir(directory);
@@ -223,32 +222,112 @@ int main(int argc, char *argv[])
 
     if (pid == 0)
     {
+        char *exec_arguments[MAX_STRING_SIZE];
+        exec_arguments[0] = "file";
+        exec_arguments[1] = "--mime-type";
+        int tmp_counter = 2;
+
+        for (int i = 0; i < queue_counter; i++)
+        {
+            exec_arguments[i + tmp_counter] = files_queue[i];
+        }
+        tmp_counter += queue_counter;
+        exec_arguments[tmp_counter] = NULL;
+
         int fd = open(TMP_FILE, O_CREAT | O_RDWR | O_TRUNC, 0644);
         if (fd == -1)
         {
             ERROR(UNABLE_OPEN_FILE, "[%d] Unable to create/open temporary file.", getpid());
         }
+
+        // Copy of stdout to file
         dup2(fd, STDOUT_FILENO);
         close(fd);
-
-        char *exec_arguments[MAX_STRING_SIZE];
-        exec_arguments[0] = "file";
-        exec_arguments[1] = "--extension";
-        int tmp_counter = 2;
-
-        for (int i = 0; i < queue_counter; i++)
-        {
-            exec_arguments[i + tmp_counter] = queue[i];
-        }
-        tmp_counter += queue_counter;
-        exec_arguments[tmp_counter] = NULL;
-
-        // unlink(TMP_FILE);
         execvp("file", exec_arguments);
+
         ERROR(EXECUTION_FAILURE, "Process was unable to execute commands.", getpid());
     }
 
     waitpid(pid, NULL, 0);
+
+    // * Processing files_queue
+    if (file_exists(TMP_FILE) && is_regular_file(TMP_FILE))
+    {
+        int fd = open_file(TMP_FILE, O_RDONLY), fs = file_size(fd), readed = 0, linebuffer_counter = 0;
+        char linebuffer[fs + 2], c;
+        linebuffer[fs] = '\0';
+
+        while ((readed = read(fd, &c, 1)) >= 0)
+        {
+            if (c == '\r')
+            {
+                continue;
+            }
+
+            //* End a line
+            if (c == '\n' || c == '\0' || readed == 0)
+            {
+                // Make sure the line ends
+                linebuffer[linebuffer_counter] = '\0';
+                linebuffer_counter = 0;
+
+                // Confirm that the line has text
+                if (strlen(linebuffer) > 0)
+                {
+                    // And does not exceed the MAX_STRING_SIZE
+                    char file[MAX_QUEUE];
+                    char ext[MAX_QUEUE];
+                    char type[MAX_QUEUE];
+                    strcut(file,
+                           linebuffer,
+                           0,
+                           strlen(linebuffer) - strlen(strchr(linebuffer, ' ')) - 2);
+                    strcut(ext,
+                           linebuffer,
+                           strlen(linebuffer) - strlen(strchr(linebuffer, '.')) + 1,
+                           strlen(linebuffer) - strlen(strchr(linebuffer, ':')) - 1);
+                    strcut(type,
+                           linebuffer,
+                           strlen(linebuffer) - strlen(strrchr(linebuffer, '/')) + 1,
+                           strlen(linebuffer));
+
+                    // Just for the extra output for the file
+                    if (strlen(linebuffer) < (MAX_STRING_SIZE + 20))
+                    {
+                        if (check(type, ext))
+                        {
+                            MESSAGE(MESSAGE_OK, "'%s': extension '%s' matches file type '%s'", file, ext, type);
+                        }
+                        else
+                        {
+                            MESSAGE(MESSAGE_MISMATCH, "'%s': extension '%s', file type '%s'", file, ext, type);
+                        }
+                    }
+                    else
+                    {
+                        MESSAGE(MESSAGE_ERROR, "max string size exceded in '%s' - %s", file, strerror(ENAMETOOLONG));
+                    }
+                }
+            }
+            else
+            {
+                // Adds to the buffer while no line ends
+                linebuffer[linebuffer_counter] = c;
+                linebuffer_counter++;
+            }
+
+            if (readed == 0)
+            {
+                break;
+            }
+        }
+    }
+    else
+    {
+        ERROR(UNABLE_OPEN_FILE, "cannot open file '%s' - %s", TMP_FILE, strerror(ENOENT));
+    }
+
+    printf("\n");
 
     return EXIT_SUCCESS;
 }
