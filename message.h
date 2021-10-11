@@ -21,4 +21,7 @@ void on_message(int type, char *fmt, ...);
 
 #define MESSAGE(type, ...) on_message((type), __VA_ARGS__)
 
+#define MSG_ENOENT(msg) MESSAGE(MESSAGE_ERROR, "cannot open file '%s' - %s", (msg), strerror(ENOENT))
+#define MSG_NAMETOOLONG(msg) MESSAGE(MESSAGE_ERROR, "max string size exceded in '%s' - %s", (msg), strerror(ENAMETOOLONG))
+
 #endif

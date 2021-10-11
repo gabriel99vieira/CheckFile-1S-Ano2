@@ -30,6 +30,7 @@
 #include "message.h"
 #include "file_helper.h"
 #include "string_aux.h"
+#include "checkfile.h"
 
 #define UNABLE_OPEN_FILE 2
 #define UNABLE_CLOSE_FILE 3
@@ -70,6 +71,13 @@ int main(int argc, char *argv[])
             files_queue[i][j] = '\0';
         }
     }
+
+    MESSAGE(MESSAGE_PROCESSING, "Processing...");
+    /*
+        Processing Magic
+        To test Signals
+    */
+    sleep(2);
 
     // File argument
     if (args.file_given)
@@ -136,12 +144,12 @@ int main(int argc, char *argv[])
                             }
                             else
                             {
-                                MESSAGE(MESSAGE_ERROR, "cannot open file '%s' - %s", linebuffer, strerror(ENOENT));
+                                MSG_ENOENT(linebuffer);
                             }
                         }
                         else
                         {
-                            MESSAGE(MESSAGE_ERROR, "max string size exceded in '%s' - %s", linebuffer, strerror(ENAMETOOLONG));
+                            MSG_NAMETOOLONG(linebuffer);
                             continue;
                         }
                     }
@@ -199,7 +207,7 @@ int main(int argc, char *argv[])
 
                 if (strlen(full) >= MAX_STRING_SIZE)
                 {
-                    MESSAGE(MESSAGE_ERROR, "max string size exceded in '%s' - %s", full, strerror(ENAMETOOLONG));
+                    MSG_NAMETOOLONG(full);
                 }
                 else
                 {
@@ -245,7 +253,7 @@ int main(int argc, char *argv[])
         close(fd);
         execvp("file", exec_arguments);
 
-        ERROR(EXECUTION_FAILURE, "Process was unable to execute commands.", getpid());
+        ERROR(EXECUTION_FAILURE, "Process was unable to execute commands.");
     }
 
     waitpid(pid, NULL, 0);
