@@ -12,3 +12,16 @@ void strcut(char *buffer, const char *string, int min, int max)
     }
     buffer[counter] = '\0';
 }
+
+int array_has_string(const char **array, int size, const char *string)
+{
+    for (int i = 0; i < size; i++)
+    {
+        if (strcmp(array[i], string) == 0)
+        {
+            return 1;
+        }
+    }
+
+    return 0;
+}

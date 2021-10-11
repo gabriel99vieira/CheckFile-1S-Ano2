@@ -299,6 +299,12 @@ int main(int argc, char *argv[])
                            strlen(linebuffer) - strlen(strrchr(linebuffer, '/')) + 1,
                            strlen(linebuffer));
 
+                    if (!array_has_string(supported_extensions, supported_extensions_count, ext))
+                    {
+                        MESSAGE(MESSAGE_ERROR, "'%s' extension not supported", ext);
+                        continue;
+                    }
+
                     // Just for the extra output for the file
                     if (strlen(linebuffer) < (MAX_STRING_SIZE + 20))
                     {
