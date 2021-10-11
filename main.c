@@ -77,7 +77,7 @@ int main(int argc, char *argv[])
         Processing Magic
         To test Signals
     */
-    sleep(2);
+    sleep(1);
 
     // File argument
     if (args.file_given)
@@ -301,7 +301,7 @@ int main(int argc, char *argv[])
 
                     if (!array_has_string(supported_extensions, supported_extensions_count, ext))
                     {
-                        MESSAGE(MESSAGE_ERROR, "'%s' extension not supported", ext);
+                        MESSAGE(MESSAGE_ERROR, "%s: '%s' extension not supported", file, ext);
                         continue;
                     }
 
