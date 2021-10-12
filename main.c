@@ -294,86 +294,66 @@ int main(int argc, char *argv[])
         ERROR_INCORRECT_FILE_ARG(TMP_FILE);
     }
 
-    int fd = open_file(TMP_FILE, O_RDONLY), fs = file_size(fd), readed = 0, linebuffer_counter = 0;
-    char linebuffer[fs + 2], c;
-    linebuffer[fs] = '\0';
-
-    if (fd == -1)
+    FILE *fl = fopen(TMP_FILE, "r");
+    if (fl == NULL)
     {
         ERROR_CANT_OPEN_FILE(TMP_FILE);
     }
 
-    while ((readed = read(fd, &c, 1)) >= 0)
+    ssize_t readed = 0;
+    size_t lenght = 0;
+    char *linebuffer = NULL;
+
+    while ((readed = getline(&linebuffer, &lenght, fl)) != EOF)
     {
-        if (c == '\r')
+        // Confirm that the line has text
+        if (strlen(linebuffer) > 0)
         {
-            continue;
-        }
+            // And does not exceed the MAX_STRING_SIZE
+            char file[MAX_QUEUE];
+            char ext[MAX_QUEUE];
+            char type[MAX_QUEUE];
 
-        //* End a line
-        if (c == '\n' || c == '\0' || readed == 0)
-        {
-            // Make sure the line ends
-            linebuffer[linebuffer_counter] = '\0';
-            linebuffer_counter = 0;
+            strcut(file,
+                   linebuffer,
+                   0,
+                   strlen(linebuffer) - strlen(strchr(linebuffer, ' ')) - 2);
+            strcut(ext,
+                   linebuffer,
+                   strlen(linebuffer) - strlen(strchr(linebuffer, '.')) + 1,
+                   strlen(linebuffer) - strlen(strchr(linebuffer, ':')) - 1);
+            strcut(type,
+                   linebuffer,
+                   strlen(linebuffer) - strlen(strrchr(linebuffer, '/')) + 1,
+                   strlen(linebuffer) - 2);
 
-            // Confirm that the line has text
-            if (strlen(linebuffer) > 0)
+            if (!array_has_string(supported_extensions, supported_extensions_count, ext))
             {
-                // And does not exceed the MAX_STRING_SIZE
-                char file[MAX_QUEUE];
-                char ext[MAX_QUEUE];
-                char type[MAX_QUEUE];
-                strcut(file,
-                       linebuffer,
-                       0,
-                       strlen(linebuffer) - strlen(strchr(linebuffer, ' ')) - 2);
-                strcut(ext,
-                       linebuffer,
-                       strlen(linebuffer) - strlen(strchr(linebuffer, '.')) + 1,
-                       strlen(linebuffer) - strlen(strchr(linebuffer, ':')) - 1);
-                strcut(type,
-                       linebuffer,
-                       strlen(linebuffer) - strlen(strrchr(linebuffer, '/')) + 1,
-                       strlen(linebuffer));
+                MESSAGE(MESSAGE_ERROR, "'%s': type '%s' extension not supported", file, ext);
+                continue;
+            }
 
-                if (!array_has_string(supported_extensions, supported_extensions_count, ext))
+            // Just for the extra output for the file
+            if (strlen(linebuffer) < (MAX_STRING_SIZE))
+            {
+                if (check(type, ext))
                 {
-                    MESSAGE(MESSAGE_ERROR, "'%s': type '%s' extension not supported", file, ext);
-                    continue;
-                }
-
-                // Just for the extra output for the file
-                if (strlen(linebuffer) < (MAX_STRING_SIZE + 20))
-                {
-                    if (check(type, ext))
-                    {
-                        MESSAGE(MESSAGE_OK, "'%s': extension '%s' matches file type '%s'", file, ext, type);
-                    }
-                    else
-                    {
-                        MESSAGE(MESSAGE_MISMATCH, "'%s': extension '%s', file type '%s'", file, ext, type);
-                    }
+                    MESSAGE(MESSAGE_OK, "'%s': extension '%s' matches file type '%s'", file, ext, type);
                 }
                 else
                 {
-                    MESSAGE(MESSAGE_ERROR, "max string size exceded in '%s' - %s", file, strerror(ENAMETOOLONG));
+                    MESSAGE(MESSAGE_MISMATCH, "'%s': extension '%s', file type '%s'", file, ext, type);
                 }
             }
-        }
-        else
-        {
-            // Adds to the buffer while no line ends
-            linebuffer[linebuffer_counter] = c;
-            linebuffer_counter++;
-        }
-
-        if (readed == 0)
-        {
-            break;
+            else
+            {
+                MESSAGE(MESSAGE_ERROR, "max string size exceded in '%s' - %s", file, strerror(ENAMETOOLONG));
+            }
         }
     }
 
+    fclose(fl);
+    free(linebuffer);
     printf("\n");
 
     return EXIT_SUCCESS;
