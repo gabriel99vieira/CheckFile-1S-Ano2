@@ -250,7 +250,7 @@ int main(int argc, char *argv[])
     pid_t pid = fork();
     if (pid == -1)
     {
-        ERROR_CANT_START_PROC(getpid());
+        ERROR_CANT_START_PROC();
     }
 
     if (pid == 0)
@@ -270,7 +270,7 @@ int main(int argc, char *argv[])
         int fd = open(TMP_FILE, O_CREAT | O_RDWR | O_TRUNC, 0644);
         if (fd == -1)
         {
-            ERROR(EXIT_FAILURE, "[%d] Unable to create/open temporary file.", getpid());
+            ERROR_CANT_OPEN_FILE(getpid());
         }
 
         // Copy of stdout to file
@@ -278,7 +278,7 @@ int main(int argc, char *argv[])
         close(fd);
         execvp("file", exec_arguments);
 
-        ERROR(EXIT_FAILURE, "Process was unable to execute commands.");
+        ERROR_CANT_EXECUTE_PROC();
     }
 
     waitpid(pid, NULL, 0);

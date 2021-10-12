@@ -153,7 +153,7 @@ void on_message(int type, char *fmt, ...)
     printf("\n");
 }
 
-void on_error(int err, char *fmt, ...)
+void on_error(int err, int extCode, char *fmt, ...)
 {
     /* Removing unused variable error */
     (void)fmt;
@@ -173,5 +173,5 @@ void on_error(int err, char *fmt, ...)
     va_end(ap);
     printf(" - %s", strerror(errno));
     printf("\n");
-    exit(EXIT_FAILURE);
+    exit(extCode);
 }
