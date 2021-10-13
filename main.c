@@ -36,6 +36,8 @@
 #define MAX_STRING_SIZE 256
 #define TMP_FILE "tmp"
 
+void add_to_queue(char *string);
+
 struct gengetopt_args_info args;
 
 int supported_extensions_count = 7;
@@ -44,12 +46,21 @@ const char *supported_extensions[] = {"pdf", "gif", "jpg", "png", "mp4", "zip", 
 char files_queue[MAX_QUEUE][MAX_STRING_SIZE];
 int queue_counter = 0;
 
+int counter_analized = 0;
+int counter_ok = 0;
+int counter_mismatch = 0;
+int counter_error = 0;
+
+int display_summary = 0;
+
+/* Main code */
 int main(int argc, char *argv[])
 {
     //* Disable warnings */
     (void)argc;
     (void)argv;
 
+    // Validate input
     if (cmdline_parser(argc, argv, &args) != 0)
     {
         exit(0);
@@ -67,9 +78,13 @@ int main(int argc, char *argv[])
     MESSAGE(MESSAGE_PROCESSING, "Starting...");
     /*
         Processing Magic
-        To test Signals
+        To help with signals testing
     */
     sleep(1);
+
+    /*
+     * ──────────────────────────────────────────────────────────── ARGUMENT INIT ─────
+     */
 
     // File argument
     if (args.file_given)
@@ -95,17 +110,17 @@ int main(int argc, char *argv[])
             }
             else
             {
-                strcpy(files_queue[queue_counter], args.file_arg[i]);
-                queue_counter++;
-                ON_DEBUG(MESSAGE_INFO, "Added new file to files_queue ( %s )", args.file_arg[i]);
+                add_to_queue(args.file_arg[i]);
             }
 
             i++;
         }
     }
 
+    // Batch argument
     if (args.batch_given)
     {
+        display_summary = 1;
 
         if (!args.dir_given && !args.file_given)
         {
@@ -114,6 +129,7 @@ int main(int argc, char *argv[])
 
         if (strcmp(file_extension(args.batch_arg), "txt") != 0)
         {
+            counter_error++;
             char msg[MAX_STRING_SIZE];
             strcpy(msg, args.batch_arg);
             cmdline_parser_free(&args);
@@ -122,6 +138,7 @@ int main(int argc, char *argv[])
 
         if (!file_exists(args.batch_arg))
         {
+            counter_error++;
             char msg[MAX_STRING_SIZE];
             strcpy(msg, args.batch_arg);
             cmdline_parser_free(&args);
@@ -130,6 +147,7 @@ int main(int argc, char *argv[])
 
         if (!is_regular_file(args.batch_arg))
         {
+            counter_error++;
             char msg[MAX_STRING_SIZE];
             strcpy(msg, args.batch_arg);
             cmdline_parser_free(&args);
@@ -157,28 +175,30 @@ int main(int argc, char *argv[])
                 // Confirm that the line has text
                 if (strlen(linebuffer) > 0)
                 {
+                    counter_analized++;
                     // Checks if the record exceeds the MAX_STRING_SIZE
                     if (strlen(linebuffer) > MAX_STRING_SIZE)
                     {
+                        counter_error++;
                         MSG_FILE_TOOLONG(linebuffer);
                         continue;
                     }
 
                     if (!file_exists(linebuffer))
                     {
+                        counter_error++;
                         MSG_FILE_NOT_EXISTS(linebuffer);
                         continue;
                     }
 
                     if (!is_regular_file(linebuffer))
                     {
+                        counter_error++;
                         MSG_INCORRECT_FILE_ARG(linebuffer);
                         continue;
                     }
 
-                    strcpy(files_queue[queue_counter], linebuffer);
-                    queue_counter++;
-                    ON_DEBUG(MESSAGE_INFO, "Added new file to files_queue ( %s )", linebuffer);
+                    add_to_queue(linebuffer);
                 }
             }
             else
@@ -195,8 +215,10 @@ int main(int argc, char *argv[])
         }
     }
 
+    // Dir argument
     if (args.dir_given)
     {
+        display_summary = 1;
         if (!args.file_given && !args.batch_given)
         {
             MESSAGE(MESSAGE_INFO, "Analizing files listed in '%s' directory...", args.dir_arg);
@@ -226,11 +248,13 @@ int main(int argc, char *argv[])
             // https://stackoverflow.com/questions/5114396/dt-reg-undeclared-first-use-in-this-function-and-std-c99
             if (entity->d_type == 8)
             {
+                counter_analized++;
                 char full[MAX_STRING_SIZE];
                 sprintf(full, "%s%s", string_dir, entity->d_name);
 
                 if (strlen(full) > MAX_STRING_SIZE)
                 {
+                    counter_error++;
                     cmdline_parser_free(&args);
                     MSG_FILE_TOOLONG(full);
                 }
@@ -245,7 +269,12 @@ int main(int argc, char *argv[])
         closedir(directory);
     }
 
+    // Free unused memory
     cmdline_parser_free(&args);
+
+    /*
+     * ───────────────────────────────────────────────────────────── FORK PROCESS ─────
+     */
 
     pid_t pid = fork();
     if (pid == -1)
@@ -283,7 +312,10 @@ int main(int argc, char *argv[])
 
     waitpid(pid, NULL, 0);
 
-    // * Processing files_queue
+    /*
+     * ─────────────────────────────────────────────────────── FORK OUPUT PROCESS ─────
+     */
+
     if (!file_exists(TMP_FILE))
     {
         ERROR_FILE_NOT_EXISTS(TMP_FILE);
@@ -329,6 +361,7 @@ int main(int argc, char *argv[])
 
             if (!array_has_string(supported_extensions, supported_extensions_count, ext))
             {
+                counter_error++;
                 MESSAGE(MESSAGE_ERROR, "'%s': type '%s' extension not supported", file, ext);
                 continue;
             }
@@ -338,23 +371,49 @@ int main(int argc, char *argv[])
             {
                 if (check(type, ext))
                 {
+                    counter_ok++;
                     MESSAGE(MESSAGE_OK, "'%s': extension '%s' matches file type '%s'", file, ext, type);
                 }
                 else
                 {
+                    counter_mismatch++;
                     MESSAGE(MESSAGE_MISMATCH, "'%s': extension '%s', file type '%s'", file, ext, type);
                 }
             }
             else
             {
+                counter_error++;
                 MESSAGE(MESSAGE_ERROR, "max string size exceded in '%s' - %s", file, strerror(ENAMETOOLONG));
             }
         }
     }
 
+    // Cleanup memory
+    unlink(TMP_FILE);
     fclose(fl);
     free(linebuffer);
     printf("\n");
 
+    // Summary display if
+    if (display_summary)
+    {
+        MESSAGE(
+            MESSAGE_SUMMARY,
+            "\n\tFiles analyzed: %d\n\tfiles OK: %d\n\tFiles MISMATCH: %d\n\tErrors: %d",
+            counter_analized, counter_ok, counter_mismatch, counter_error);
+    }
+
     return EXIT_SUCCESS;
+}
+
+/**
+ * @brief Add to queue helper
+ * 
+ * @param string 
+ */
+void add_to_queue(char *string)
+{
+    strcpy(files_queue[queue_counter], string);
+    queue_counter++;
+    ON_DEBUG(MESSAGE_INFO, "Added new file to files_queue ( %s )", string);
 }

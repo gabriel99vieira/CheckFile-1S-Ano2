@@ -137,7 +137,7 @@ void on_message(int type, char *fmt, ...)
         break;
     case MESSAGE_SUMMARY:
         setcolor(COLOR_YELLOW);
-        printf("MISMATCH");
+        printf("SUMMARY");
         setcolor(COLOR_RESET);
         break;
 

@@ -17,6 +17,8 @@ purpose "Check if a file extension matches it's file type"
 # NOTE: support for this file needs to be enabled in 'makefile'
 #
 
-option "file"   f   "Input file"                                            string  optional    typestr="filename"  multiple
-option "batch"  b   "Input file with a batch of files (one per line)"       string  optional    typestr="filename"
-option "dir"    d   "Uses the specified directory to read the files"        string  optional
+defgroup "input"
+
+groupoption "file"   f   "Input file"                                            string  optional   group="input"      typestr="filename"  multiple
+groupoption "batch"  b   "Input file with a batch of files (one per line)"       string  optional   group="input"     typestr="filename"
+groupoption "dir"    d   "Uses the specified directory to read the files"        string  optional   group="input"
