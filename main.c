@@ -433,7 +433,7 @@ int main(int argc, char *argv[])
         printf("\n");
         MESSAGE(
             MESSAGE_SUMMARY,
-            "\n\tFiles analyzed: %d\n\tfiles OK: %d\n\tFiles MISMATCH: %d\n\tErrors: %d",
+            "\n\tFiles analyzed: %d\n\tFiles OK: %d\n\tFiles MISMATCH: %d\n\tErrors: %d",
             counter_analized, counter_ok, counter_mismatch, counter_error);
     }
 

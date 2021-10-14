@@ -33,9 +33,15 @@ The main goal of this project is to check a file, directory or batch of files gi
 ### Arguments
 
 ```
-		-f --file		Receives a file or multiple
-		-b --batch		Receives a 'txt' file with a list of files one per line
-		-d --dir		Receives a directory to loop through its files
+-f --file		Receives a file or multiple
+-b --batch		Receives a 'txt' file with a list of files one per line
+-d --dir		Receives a directory to loop through its files
+```
+
+File argument example
+
+```
+./checkfile -f file1.html -f file2.html
 ```
 
 ## Run stats
@@ -68,11 +74,11 @@ make clean && make && ./checkfile -b BATCH_FILE
 make clean && make && ./checkfile -d POINT_DIRECTORY
 ```
 
-## Work by
+## Contributors
 
 Gabriel Madeira Vieira Nº2200661
 
-Diogo dos Anjos Barbeiro Nº???????
+Diogo dos Anjos Barbeiro Nº2200687
 
 <br>
 
