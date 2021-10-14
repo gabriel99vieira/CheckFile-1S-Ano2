@@ -1,9 +1,9 @@
 /**
-* @file main.c
-* @brief Description
-* @date 2018-1-1
-* @author name of author
-*/
+ * @file main.c
+ * @brief Description
+ * @date 2018-1-1
+ * @author name of author
+ */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -21,7 +21,7 @@
 #include <fcntl.h>
 #include <stdint.h>
 #include <dirent.h>
-// #include <time.h>
+#include <time.h>
 // #include <assert.h>
 
 #include "debug.h"
@@ -37,12 +37,16 @@
 #define TMP_FILE "tmp"
 
 void add_to_queue(char *string);
+void handle_signal(int signal, siginfo_t *info, void *context);
 
+time_t timestamp;
+struct tm *timeinfo;
 struct gengetopt_args_info args;
 
 int supported_extensions_count = 7;
 const char *supported_extensions[] = {"pdf", "gif", "jpg", "png", "mp4", "zip", "html"};
 
+char *current_file_in_batch = NULL;
 char files_queue[MAX_QUEUE][MAX_STRING_SIZE];
 int queue_counter = 0;
 
@@ -52,8 +56,12 @@ int counter_mismatch = 0;
 int counter_error = 0;
 
 int display_summary = 0;
+int batch_processing = 0;
 
-/* Main code */
+/*
+ * ──────────────────────────────────────────────────────────────── MAIN CODE ─────
+ */
+
 int main(int argc, char *argv[])
 {
     //* Disable warnings */
@@ -66,6 +74,30 @@ int main(int argc, char *argv[])
         exit(0);
     }
 
+    // Setting up this settings as soon as possible because they are used in signals
+    if (args.batch_given)
+    {
+        batch_processing = 1;
+        time(&timestamp);
+        timeinfo = localtime(&timestamp);
+    }
+
+    // Signal assign
+    struct sigaction act;
+    act.sa_sigaction = handle_signal;
+    sigemptyset(&act.sa_mask);              // Remove signal blocking
+    act.sa_flags = SA_SIGINFO | SA_RESTART; // Sends adicional info to the handler and recover blocking calls
+
+    if (sigaction(SIGQUIT, &act, NULL) < 0)
+    {
+        ERROR_UNABLE_SET_SIGNAL_HANDLER(SIGQUIT);
+    }
+
+    if (sigaction(SIGUSR1, &act, NULL) < 0)
+    {
+        ERROR_UNABLE_SET_SIGNAL_HANDLER(SIGUSR1);
+    }
+
     // Clean queue
     for (int i = 0; i < MAX_QUEUE; i++)
     {
@@ -76,11 +108,6 @@ int main(int argc, char *argv[])
     }
 
     MESSAGE(MESSAGE_PROCESSING, "Starting...");
-    /*
-        Processing Magic
-        To help with signals testing
-    */
-    sleep(1);
 
     /*
      * ──────────────────────────────────────────────────────────── ARGUMENT INIT ─────
@@ -350,6 +377,9 @@ int main(int argc, char *argv[])
                    linebuffer,
                    0,
                    strlen(linebuffer) - strlen(strchr(linebuffer, ' ')) - 2);
+
+            current_file_in_batch = file;
+
             strcut(ext,
                    linebuffer,
                    strlen(linebuffer) - strlen(strchr(linebuffer, '.')) + 1,
@@ -392,28 +422,69 @@ int main(int argc, char *argv[])
     unlink(TMP_FILE);
     fclose(fl);
     free(linebuffer);
-    printf("\n");
 
     // Summary display if
     if (display_summary)
     {
+        printf("\n");
         MESSAGE(
             MESSAGE_SUMMARY,
             "\n\tFiles analyzed: %d\n\tfiles OK: %d\n\tFiles MISMATCH: %d\n\tErrors: %d",
             counter_analized, counter_ok, counter_mismatch, counter_error);
     }
 
+    printf("\n");
     return EXIT_SUCCESS;
 }
 
+/*
+ * ───────────────────────────────────────────────────────── HELPER FUNCTIONS ─────
+ */
+
 /**
  * @brief Add to queue helper
- * 
- * @param string 
+ *
+ * @param string
  */
 void add_to_queue(char *string)
 {
     strcpy(files_queue[queue_counter], string);
     queue_counter++;
     ON_DEBUG(MESSAGE_INFO, "Added new file to files_queue ( %s )", string);
+}
+
+/**
+ * @brief Signals handler
+ *
+ * @param signal
+ * @param info
+ * @param context
+ */
+void handle_signal(int signal, siginfo_t *info, void *context)
+{
+    (void)context;
+
+    int aux = errno;
+
+    switch (signal)
+    {
+    case SIGQUIT:
+        printf("\n");
+        MESSAGE(MESSAGE_SIGNAL, "\nCaptured %s signal (sent by PID: %ld). Use %s to terminate application.\n", strsignal(SIGQUIT), info->si_pid, strsignal(SIGINT));
+        break;
+    case SIGUSR1:;
+        if (batch_processing)
+        {
+            printf("\n");
+            // fix: https://www.educative.io/edpresso/resolving-the-a-label-can-only-be-part-of-a-statement-error
+            char formatted_time[MAX_STRING_SIZE];
+            strftime(formatted_time, sizeof(formatted_time), "%Y.%m.%d_%Hh%M:%S", timeinfo);
+            MESSAGE(MESSAGE_SIGNAL, "\n\t%s\n\tNº%d/%s\n", formatted_time, (counter_analized + 1), (current_file_in_batch == NULL) ? "'Not enough time to get the file'" : current_file_in_batch);
+        }
+        break;
+    default:
+        break;
+    }
+
+    errno = aux;
 }

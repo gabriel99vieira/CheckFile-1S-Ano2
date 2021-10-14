@@ -13,6 +13,7 @@ void on_error(int err, int extCode, char *fmt, ...);
 #define MESSAGE_WAITING 6
 #define MESSAGE_MISMATCH 7
 #define MESSAGE_SUMMARY 8
+#define MESSAGE_SIGNAL 9
 
 #define C_ERROR_FILE_NOT_EXISTS 1
 #define C_ERROR_INCRRECT_OR_INVALID_ARG 2
@@ -20,10 +21,11 @@ void on_error(int err, int extCode, char *fmt, ...);
 #define C_ERROR_UNABLE_OPEN_DIR 4
 #define C_ERROR_UNABLE_START_PROC 5
 #define C_ERROR_UNABLE_EXECUTE_PROC 6
+#define C_ERROR_UNABLE_TO_SET_SIGNAL_HANDLER 7
 
 /**
- * @see on_debug() 
- * 
+ * @see on_debug()
+ *
  */
 #define ON_DEBUG(type, ...) on_debug((type), __VA_ARGS__)
 #define MESSAGE(type, ...) on_message((type), __VA_ARGS__)
@@ -38,5 +40,6 @@ void on_error(int err, int extCode, char *fmt, ...);
 #define ERROR_CANT_OPEN_DIR(dir) on_error((errno), (C_ERROR_UNABLE_OPEN_DIR), "cannot open dir '%s'", (dir))
 #define ERROR_CANT_START_PROC() on_error((errno), (C_ERROR_UNABLE_START_PROC), "unable to start new process")
 #define ERROR_CANT_EXECUTE_PROC() on_error((errno), (C_ERROR_UNABLE_EXECUTE_PROC), "unable to execute process")
+#define ERROR_UNABLE_SET_SIGNAL_HANDLER(sig) on_error((errno), (C_ERROR_UNABLE_TO_SET_SIGNAL_HANDLER), "unable to set signal handler for '%s'", strsignal((sig)))
 
 #endif
