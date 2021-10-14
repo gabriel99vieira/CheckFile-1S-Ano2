@@ -29,6 +29,7 @@ void on_error(int err, int extCode, char *fmt, ...);
  */
 #define ON_DEBUG(type, ...) on_debug((type), __VA_ARGS__)
 #define MESSAGE(type, ...) on_message((type), __VA_ARGS__)
+#define ON_ERROR(extCode, ...) on_error((errno), (extCode), __VA_ARGS__)
 
 #define MSG_FILE_TOOLONG(arg) MESSAGE(MESSAGE_ERROR, "'%s': file path too long - %s", (arg), strerror(ENAMETOOLONG))
 #define MSG_FILE_NOT_EXISTS(file) MESSAGE(MESSAGE_ERROR, "cannot open file '%s' - %s", (file), strerror(ENOENT))

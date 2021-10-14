@@ -74,6 +74,12 @@ int main(int argc, char *argv[])
         exit(0);
     }
 
+    // Double checking paramenters
+    if (!args.file_given && !args.batch_given && !args.dir_given)
+    {
+        ON_ERROR(C_ERROR_INCRRECT_OR_INVALID_ARG, "at least an argument must be given");
+    }
+
     // Setting up this settings as soon as possible because they are used in signals
     if (args.batch_given)
     {
@@ -82,9 +88,12 @@ int main(int argc, char *argv[])
         timeinfo = localtime(&timestamp);
     }
 
-    // Signal assign
+    /*
+     * ────────────────────────────────────────────────────────────────── SIGNALS ─────
+     */
+
     struct sigaction act;
-    act.sa_sigaction = handle_signal;
+    act.sa_sigaction = handle_signal;       // handler function
     sigemptyset(&act.sa_mask);              // Remove signal blocking
     act.sa_flags = SA_SIGINFO | SA_RESTART; // Sends adicional info to the handler and recover blocking calls
 
@@ -340,7 +349,7 @@ int main(int argc, char *argv[])
     waitpid(pid, NULL, 0);
 
     /*
-     * ─────────────────────────────────────────────────────── FORK OUPUT PROCESS ─────
+     * ─────────────────────────────────────────────────── DISPLAY PROCESSED DATA ─────
      */
 
     if (!file_exists(TMP_FILE))
@@ -418,11 +427,6 @@ int main(int argc, char *argv[])
         }
     }
 
-    // Cleanup memory
-    unlink(TMP_FILE);
-    fclose(fl);
-    free(linebuffer);
-
     // Summary display if
     if (display_summary)
     {
@@ -434,6 +438,12 @@ int main(int argc, char *argv[])
     }
 
     printf("\n");
+
+    // Cleanup memory
+    unlink(TMP_FILE);
+    fclose(fl);
+    free(linebuffer);
+
     return EXIT_SUCCESS;
 }
 

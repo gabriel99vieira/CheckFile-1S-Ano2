@@ -20,13 +20,31 @@
 
 ## About The Project
 
-The main goal of this project is to evaluate a file type or a given batch of files.
-<br>
-To make sure that every one has the right extension.
+The main goal of this project is to check a file, directory or batch of files given as input and match its type with its extension to allow the user to know wich ones have the correct type.
 
 <br>
 
-<!-- GETTING STARTED -->
+## Usage
+
+```
+./checkfile
+```
+
+### Arguments
+
+```
+		-f --file		Receives a file or multiple
+		-b --batch		Receives a 'txt' file with a list of files one per line
+		-d --dir		Receives a directory to loop through its files
+```
+
+## Run stats
+
+```
+command time -v ./checkfile <args>
+```
+
+<br>
 
 ## Compiling
 
@@ -46,31 +64,9 @@ make clean && make debugon
 
 ```
 make clean && make && ./checkfile -f FILE
-make clean && make && ./checkfile -d POINT_DIRECTORY -f FILE
-
 make clean && make && ./checkfile -b BATCH_FILE
-make clean && make && ./checkfile -d POINT_DIRECTORY -b BATCH_FILE
+make clean && make && ./checkfile -d POINT_DIRECTORY
 ```
-
-## Usage
-
-> Help
-
-```
-./checkfile -h
-```
-
-> Execute
-
-```
-./checkfile -f FILE
-./checkfile -f FILE -d POINT_DIRECTORY
-
-./checkfile -b FILE
-./checkfile -b FILE -d POINT_DIRECTORY
-```
-
-<br>
 
 ## Work by
 
@@ -90,4 +86,4 @@ Diogo dos Anjos Barbeiro Nº???????
 
 ## License
 
-Distributed under the MIT License. See `LICENSE` for more information.
+No License attatched
