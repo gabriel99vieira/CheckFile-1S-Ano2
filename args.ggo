@@ -1,21 +1,12 @@
 package "Checkfile"
 version "1.0"
-purpose "Check if a file extension matches it's file type"
-# description "description needed (optional)"
-# versiontext "versiontext needed (optional)"
-
-#----------------------------
-# independent options
-#----------------------------
-# Mandatory option
-# option "folder" f "folder" string typestr="dirname" required
-
-# Optional
-# option "num" n "number" int optional
-
-#
-# NOTE: support for this file needs to be enabled in 'makefile'
-#
+purpose "
+Checks if a file extension matches it's file type"
+description "Supported file types: PDF, GIF, JPG, PNG, MP4, ZIP, HTML
+Contributors:
+    2200661 - Gabriel Madeira Vieira
+    2200687 - Diogo dos Anjos Barbeiro
+"
 
 defgroup "input" required
 
