@@ -476,7 +476,7 @@ void handle_signal(int signal, siginfo_t *info, void *context)
         if (batch_processing)
         {
             printf("\n");
-            // fix: https://www.educative.io/edpresso/resolving-the-a-label-can-only-be-part-of-a-statement-error
+            // fix for "labels": https://www.educative.io/edpresso/resolving-the-a-label-can-only-be-part-of-a-statement-error
             char formatted_time[MAX_STRING_SIZE];
             strftime(formatted_time, sizeof(formatted_time), "%Y.%m.%d_%Hh%M:%S", timeinfo);
             MESSAGE(MESSAGE_SIGNAL, "\n\t%s\n\tNº%d/%s\n", formatted_time, (counter_analized + 1), (current_file_in_batch == NULL) ? "'Not enough time to get the file'" : current_file_in_batch);
