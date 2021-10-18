@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <string.h>
+#include <ctype.h>
 #include "string_aux.h"
 
 void strcut(char *buffer, const char *string, int min, int max)
@@ -24,4 +25,12 @@ int array_has_string(const char **array, int size, const char *string)
     }
 
     return 0;
+}
+
+void strtolower(char *string)
+{
+    for (size_t i = 0; i < strlen(string); i++)
+    {
+        string[i] = tolower(string[i]);
+    }
 }

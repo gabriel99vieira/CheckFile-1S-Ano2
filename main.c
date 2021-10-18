@@ -420,6 +420,8 @@ int main(int argc, char *argv[])
                    strlen(linebuffer) - strlen(strrchr(linebuffer, '/')) + 1,
                    strlen(linebuffer) - 2);
 
+            strtolower(ext);
+
             if (!array_has_string(supported_extensions, supported_extensions_count, ext))
             {
                 counter_error++;
