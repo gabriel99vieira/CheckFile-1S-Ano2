@@ -36,7 +36,20 @@
 #define MAX_STRING_SIZE 256
 #define TMP_FILE "tmp"
 
+/**
+ * @brief Add to queue helper
+ *
+ * @param string
+ */
 void add_to_queue(char *string);
+
+/**
+ * @brief Signals handler
+ *
+ * @param signal
+ * @param info
+ * @param context
+ */
 void handle_signal(int signal, siginfo_t *info, void *context);
 
 time_t timestamp;
@@ -46,15 +59,18 @@ struct gengetopt_args_info args;
 int supported_extensions_count = 7;
 const char *supported_extensions[] = {"pdf", "gif", "jpg", "png", "mp4", "zip", "html"};
 
+// Queue
 char *current_file_in_batch = NULL;
 char files_queue[MAX_QUEUE][MAX_STRING_SIZE];
 int queue_counter = 0;
 
+// Counters
 int counter_analized = 0;
 int counter_ok = 0;
 int counter_mismatch = 0;
 int counter_error = 0;
 
+// Booleans
 int display_summary = 0;
 int batch_processing = 0;
 
@@ -116,7 +132,7 @@ int main(int argc, char *argv[])
         }
     }
 
-    MESSAGE(MESSAGE_PROCESSING, "Starting...");
+    MESSAGE(MESSAGE_INFO, "Starting...");
 
     /*
      * ──────────────────────────────────────────────────────────── ARGUMENT INIT ─────
@@ -312,12 +328,14 @@ int main(int argc, char *argv[])
      * ───────────────────────────────────────────────────────────── FORK PROCESS ─────
      */
 
+    // Create fork
     pid_t pid = fork();
     if (pid == -1)
     {
         ERROR_CANT_START_PROC();
     }
 
+    // Child process distinction
     if (pid == 0)
     {
         char *exec_arguments[MAX_STRING_SIZE];
@@ -343,6 +361,10 @@ int main(int argc, char *argv[])
         close(fd);
         execvp("file", exec_arguments);
 
+        /**
+         * If this code is executed it means that exec returned -1
+         * and the errno variable was set
+         */
         ERROR_CANT_EXECUTE_PROC();
     }
 
@@ -480,7 +502,7 @@ void handle_signal(int signal, siginfo_t *info, void *context)
     {
     case SIGQUIT:
         printf("\n");
-        MESSAGE(MESSAGE_SIGNAL, "\nCaptured %s signal (sent by PID: %ld). Use %s to terminate application.\n", strsignal(SIGQUIT), info->si_pid, strsignal(SIGINT));
+        MESSAGE(MESSAGE_SIGNAL, "\nCaptured %s (%s) signal (sent by PID: %ld). Use %s (%s) to terminate application.\n", "SIGQUIT", strsignal(SIGQUIT), info->si_pid, "SIGINT", strsignal(SIGINT));
         break;
     case SIGUSR1:;
         if (batch_processing)
@@ -489,7 +511,7 @@ void handle_signal(int signal, siginfo_t *info, void *context)
             // fix for "labels": https://www.educative.io/edpresso/resolving-the-a-label-can-only-be-part-of-a-statement-error
             char formatted_time[MAX_STRING_SIZE];
             strftime(formatted_time, sizeof(formatted_time), "%Y.%m.%d_%Hh%M:%S", timeinfo);
-            MESSAGE(MESSAGE_SIGNAL, "\n\t%s\n\tNº%d/%s\n", formatted_time, (counter_analized + 1), (current_file_in_batch == NULL) ? "'Not enough time to get the file'" : current_file_in_batch);
+            MESSAGE(MESSAGE_SIGNAL, "\n\t%s\n\tNº%d/%s\n", formatted_time, (counter_analized + 1), (current_file_in_batch == NULL) ? "'File not retrieved yet'" : current_file_in_batch);
         }
         break;
     default:
