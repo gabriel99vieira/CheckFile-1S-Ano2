@@ -90,6 +90,6 @@ int is_regular_file(const char *path)
 
 char *file_extension(const char *file)
 {
-    char *pos = strchr(file, '.');
+    char *pos = strrchr(file, '.');
     return (pos == NULL) ? "" : (pos + 1);
 }

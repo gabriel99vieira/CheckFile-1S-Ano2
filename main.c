@@ -170,7 +170,7 @@ int main(int argc, char *argv[])
             }
             else
             {
-                add_to_queue(args.file_arg[i]);
+                add_to_queue(&args.file_arg[i][0]);
             }
 
             i++;
@@ -426,14 +426,20 @@ int main(int argc, char *argv[])
 
             strcut(ext,
                    linebuffer,
-                   strlen(linebuffer) - strlen(strchr(linebuffer, '.')) + 1,
+                   0,
                    strlen(linebuffer) - strlen(strchr(linebuffer, ':')) - 1);
+
+            char *pos = file_extension(ext);
+            strcpy(ext, pos);
+
             strcut(type,
                    linebuffer,
                    strlen(linebuffer) - strlen(strrchr(linebuffer, '/')) + 1,
                    strlen(linebuffer) - 2);
 
             strtolower(ext);
+
+            ON_DEBUG(MESSAGE_PROCESSING, "Checking file '%s' with (ext: %s) (type: %s)", file, ext, type);
 
             if (!array_has_string(supported_extensions, supported_extensions_count, ext))
             {

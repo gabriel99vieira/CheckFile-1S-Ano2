@@ -98,7 +98,11 @@ void on_debug(int type, char *fmt, ...)
     (void)fmt;
 
 #ifdef SHOW_DEBUG
-    on_message(type, fmt);
+    on_message(type, "");
+    va_list ap;
+    va_start(ap, fmt);
+    vfprintf(stdout, fmt, ap);
+    va_end(ap);
 #endif
 }
 
