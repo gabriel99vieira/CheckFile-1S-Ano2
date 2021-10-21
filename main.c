@@ -118,9 +118,17 @@ int main(int argc, char *argv[])
         ERROR_UNABLE_SET_SIGNAL_HANDLER(SIGQUIT);
     }
 
-    if (sigaction(SIGUSR1, &act, NULL) < 0)
+    if (batch_processing)
     {
-        ERROR_UNABLE_SET_SIGNAL_HANDLER(SIGUSR1);
+        if (sigaction(SIGUSR1, &act, NULL) < 0)
+        {
+            ERROR_UNABLE_SET_SIGNAL_HANDLER(SIGUSR1);
+        }
+    }
+    else
+    {
+        // sigaddset(&act.sa_mask, SIGUSR1);
+        signal(SIGQUIT, SIG_IGN);
     }
 
     // Clean queue
@@ -328,6 +336,11 @@ int main(int argc, char *argv[])
      * ───────────────────────────────────────────────────────────── FORK PROCESS ─────
      */
 
+    /*
+        ! A buffer will not be used to retrieve the child process
+        ! Instead a temporary file is created to allow more output
+    */
+
     // Create fork
     pid_t pid = fork();
     if (pid == -1)
@@ -429,7 +442,7 @@ int main(int argc, char *argv[])
                 continue;
             }
 
-            // Just for the extra output for the file
+            // Just for the extra output of the file
             if (strlen(linebuffer) < (MAX_STRING_SIZE))
             {
                 if (check(type, ext))
@@ -507,13 +520,14 @@ void handle_signal(int signal, siginfo_t *info, void *context)
         MESSAGE(MESSAGE_SIGNAL, "\nCaptured %s (%s) signal (sent by PID: %ld). Use %s (%s) to terminate application.\n", "SIGQUIT", strsignal(SIGQUIT), info->si_pid, "SIGINT", strsignal(SIGINT));
         break;
     case SIGUSR1:;
+        // Extra precaution
         if (batch_processing)
         {
             printf("\n");
             // fix for "labels": https://www.educative.io/edpresso/resolving-the-a-label-can-only-be-part-of-a-statement-error
             char formatted_time[MAX_STRING_SIZE];
             strftime(formatted_time, sizeof(formatted_time), "%Y.%m.%d_%Hh%M:%S", timeinfo);
-            MESSAGE(MESSAGE_SIGNAL, "\n\t%s\n\tNº%d/%s\n", formatted_time, (counter_analized + 1), (current_file_in_batch == NULL) ? "'File not retrieved yet'" : current_file_in_batch);
+            MESSAGE(MESSAGE_SIGNAL, "\n\t%s\n\tNº%d/%s\n", formatted_time, (counter_analized), (current_file_in_batch == NULL) ? "'File not retrieved yet'" : current_file_in_batch);
         }
         break;
     default:

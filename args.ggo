@@ -10,6 +10,6 @@ Contributors:
 
 defgroup "input" required
 
-groupoption "file"   f   "Input file to check"                                          string  optional   group="input"       typestr="filename"  multiple
-groupoption "batch"  b   "Input file with a batch of files (one per line)"              string  optional   group="input"       typestr="filename"
-groupoption "dir"    d   "Loops through this directory verifying each regular file"     string  optional   group="input"
+groupoption "file"   f   "Input file to check"                                          string  group="input"       typestr="filename"  multiple
+groupoption "batch"  b   "Input file with a batch of files (one per line)"              string  group="input"       typestr="filename"
+groupoption "dir"    d   "Loops through this directory verifying each regular file"     string  group="input"       typestr="directory"
