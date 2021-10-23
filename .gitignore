@@ -63,3 +63,6 @@ tests/noimage.jpg
 tests/batch.txt
 tests/noimage.jpg
 tests/batch.txt
+tmp_batch
+tmp_err
+tmp_out
