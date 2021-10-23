@@ -49,12 +49,12 @@ void on_message(int type, char *fmt, ...)
         break;
     case MESSAGE_PROCESSING:
         setcolor(COLOR_BLUE);
-        printf("PROCESS_");
+        printf("PROCESS");
         setcolor(COLOR_RESET);
         break;
     case MESSAGE_WAITING:
         setcolor(COLOR_MAGENTA);
-        printf("WAITING_");
+        printf("WAITING");
         setcolor(COLOR_RESET);
         break;
     case MESSAGE_MISMATCH:
@@ -64,7 +64,7 @@ void on_message(int type, char *fmt, ...)
         break;
     case MESSAGE_SUMMARY:
         setcolor(COLOR_YELLOW);
-        printf("SUMMARY_");
+        printf("SUMMARY");
         setcolor(COLOR_RESET);
         break;
     case MESSAGE_SIGNAL:
@@ -74,7 +74,7 @@ void on_message(int type, char *fmt, ...)
         break;
 
     default:
-        printf(" OTHER_ ");
+        printf("OTHER");
         break;
     }
     printf("]: ");
