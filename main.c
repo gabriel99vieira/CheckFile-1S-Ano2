@@ -356,6 +356,12 @@ int main(int argc, char *argv[])
         closedir(directory);
     }
 
+    /**
+     * ! Add here your new way to select files
+     * ! Just add them to the buffer like this
+     * ! add_to_queue(file_string)
+     */
+
     // Free unused memory
     cmdline_parser_free(&args);
 
