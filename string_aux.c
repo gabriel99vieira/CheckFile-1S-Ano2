@@ -20,11 +20,11 @@ int array_has_string(const char **array, int size, const char *string)
     {
         if (strcmp(array[i], string) == 0)
         {
-            return 1;
+            return i;
         }
     }
 
-    return 0;
+    return -1;
 }
 
 void strtolower(char *string)

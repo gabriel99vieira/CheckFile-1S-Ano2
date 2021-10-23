@@ -2,10 +2,10 @@
 #define _COLORS_H_
 
 /**
- * 
+ *
  * Syntax provided from:
  * https://stackoverflow.com/questions/3585846/color-text-in-terminal-applications-in-unix/3586005#3586005
- * 
+ *
  */
 
 #define COLOR_BLACK "\x1B[0m"
@@ -18,6 +18,11 @@
 #define COLOR_WHITE "\x1B[37m"
 #define COLOR_RESET "\033[0m"
 
+/**
+ * @brief Sets the color for the upcoming output
+ *
+ * @param color
+ */
 void setcolor(const char *color);
 
 #endif

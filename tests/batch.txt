@@ -11,5 +11,7 @@ tests/nopdf.pdf
 tests/nozip.zip
 tests/pdf.pdf
 tests/zip.zip
+tests/docx.docx
+tests/nodocx.docx
 ascdasd
 tests/

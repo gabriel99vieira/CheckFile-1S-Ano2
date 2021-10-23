@@ -30,7 +30,6 @@
 #include "message.h"
 #include "file_helper.h"
 #include "string_aux.h"
-#include "checkfile.h"
 
 #define MAX_QUEUE 100
 #define MAX_STRING_SIZE 256
@@ -38,6 +37,15 @@
 
 #define TMP_SOUT TMP_FILE "_out"
 #define TMP_SERR TMP_FILE "_err"
+
+/**
+ * @brief Checks file extension with its mime type
+ *
+ * @param pos
+ * @param readed_type
+ * @return int
+ */
+int check(int pos, const char *readed_type);
 
 /**
  * @brief Add to queue helper
@@ -55,12 +63,18 @@ void add_to_queue(char *string);
  */
 void handle_signal(int signal, siginfo_t *info, void *context);
 
+#pragma region INIT_VAR
+
 time_t timestamp;
 struct tm *timeinfo;
 struct gengetopt_args_info args;
 
-int supported_extensions_count = 7;
+#define SUPPORT_COUNT 7
+int supported_extensions_count = SUPPORT_COUNT;
 const char *supported_extensions[] = {"pdf", "gif", "jpg", "png", "mp4", "zip", "html"};
+
+int supported_types_count = SUPPORT_COUNT;
+const char *supported_types[] = {"application/pdf", "image/gif", "image/jpeg", "image/png", "video/mp4", "application/zip", "text/html"};
 
 // Queue
 char *current_file_in_batch = NULL;
@@ -76,6 +90,8 @@ int counter_error = 0;
 // Booleans
 int display_summary = 0;
 int batch_processing = 0;
+
+#pragma endregion INIT_VAR
 
 /*
  * ──────────────────────────────────────────────────────────────── MAIN CODE ─────
@@ -444,46 +460,49 @@ int main(int argc, char *argv[])
         // Confirm that the line has text
         if (strlen(linebuffer) > 0)
         {
-            // And does not exceed the MAX_STRING_SIZE
             char file[MAX_QUEUE];
             char ext[MAX_QUEUE];
             char type[MAX_QUEUE];
 
-            strcut(file,
-                   linebuffer,
-                   0,
-                   strlen(linebuffer) - strlen(strchr(linebuffer, ' ')) - 2);
-
-            current_file_in_batch = file;
-
-            strcut(ext,
-                   linebuffer,
-                   0,
-                   strlen(linebuffer) - strlen(strchr(linebuffer, ':')) - 1);
-
-            char *pos = file_extension(ext);
-            strcpy(ext, pos);
-
-            strcut(type,
-                   linebuffer,
-                   strlen(linebuffer) - strlen(strrchr(linebuffer, '/')) + 1,
-                   strlen(linebuffer) - 2);
-
-            strtolower(ext);
-
-            ON_DEBUG(MESSAGE_PROCESSING, "Checking file '%s' with (ext: %s) (type: %s)", file, ext, type);
-
-            if (!array_has_string(supported_extensions, supported_extensions_count, ext))
-            {
-                counter_error++;
-                MESSAGE(MESSAGE_ERROR, "'%s': type '%s' extension not supported", file, ext);
-                continue;
-            }
-
-            // Just for the extra output of the file
+            // Confirm that the line does not exceed the MAX_STRING_SIZE
             if (strlen(linebuffer) < (MAX_STRING_SIZE))
             {
-                if (check(type, ext))
+
+                strcut(file,
+                       linebuffer,
+                       0,
+                       strlen(linebuffer) - strlen(strchr(linebuffer, ' ')) - 2);
+
+                current_file_in_batch = file;
+
+                strcut(ext,
+                       linebuffer,
+                       0,
+                       strlen(linebuffer) - strlen(strchr(linebuffer, ':')) - 1);
+
+                char *pos = file_extension(ext);
+                strcpy(ext, pos);
+
+                strcut(type,
+                       linebuffer,
+                       strlen(linebuffer) - strlen(strrchr(linebuffer, ' ')) + 1,
+                       strlen(linebuffer) - 2);
+
+                strtolower(ext);
+                strtolower(type);
+
+                ON_DEBUG(MESSAGE_PROCESSING, "Checking file '%s' with (ext: %s) (type: %s)", file, ext, type);
+
+                int ext_pos = array_has_string(supported_extensions, supported_extensions_count, ext);
+
+                if (ext_pos < 0)
+                {
+                    counter_error++;
+                    MESSAGE(MESSAGE_ERROR, "'%s': type '%s' is not supported", file, type);
+                    continue;
+                }
+
+                if (strcmp(supported_types[ext_pos], type) == 0)
                 {
                     counter_ok++;
                     MESSAGE(MESSAGE_OK, "'%s': extension '%s' matches file type '%s'", file, ext, type);
@@ -516,9 +535,11 @@ int main(int argc, char *argv[])
 
 #pragma endregion DISPLAY
 
-    // Cleanup memory
+// Cleanup memory
+#ifndef SHOW_DEBUG
     unlink(TMP_SOUT);
     unlink(TMP_SERR);
+#endif
     fclose(fl);
     free(linebuffer);
 
@@ -528,6 +549,8 @@ int main(int argc, char *argv[])
 /*
  * ───────────────────────────────────────────────────────── HELPER FUNCTIONS ─────
  */
+
+#pragma region HELPERS
 
 /**
  * @brief Add to queue helper
@@ -577,3 +600,5 @@ void handle_signal(int signal, siginfo_t *info, void *context)
 
     errno = aux;
 }
+
+#pragma endregion HELPERS

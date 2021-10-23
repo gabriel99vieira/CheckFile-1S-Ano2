@@ -90,6 +90,10 @@ int is_regular_file(const char *path)
 
 char *file_extension(const char *file)
 {
+    /**
+     * Based on:
+     * https://stackoverflow.com/questions/5309471/getting-file-extension-in-c
+     */
     char *pos = strrchr(file, '.');
     return (pos == NULL) ? "" : (pos + 1);
 }

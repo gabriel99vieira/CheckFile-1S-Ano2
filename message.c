@@ -29,32 +29,32 @@ void on_message(int type, char *fmt, ...)
     {
     case MESSAGE_OK:
         setcolor(COLOR_GREEN);
-        printf("OK");
+        printf("   OK   ");
         setcolor(COLOR_RESET);
         break;
     case MESSAGE_INFO:
         setcolor(COLOR_CYAN);
-        printf("INFO");
+        printf("  INFO  ");
         setcolor(COLOR_RESET);
         break;
     case MESSAGE_WARN:
         setcolor(COLOR_YELLOW);
-        printf("WARN");
+        printf("  WARN  ");
         setcolor(COLOR_RESET);
         break;
     case MESSAGE_ERROR:
         setcolor(COLOR_RED);
-        printf("ERROR");
+        printf("  ERRO  ");
         setcolor(COLOR_RESET);
         break;
     case MESSAGE_PROCESSING:
         setcolor(COLOR_BLUE);
-        printf("PROCESS");
+        printf("PROCESS_");
         setcolor(COLOR_RESET);
         break;
     case MESSAGE_WAITING:
         setcolor(COLOR_MAGENTA);
-        printf("WAITING");
+        printf("WAITING_");
         setcolor(COLOR_RESET);
         break;
     case MESSAGE_MISMATCH:
@@ -64,17 +64,17 @@ void on_message(int type, char *fmt, ...)
         break;
     case MESSAGE_SUMMARY:
         setcolor(COLOR_YELLOW);
-        printf("SUMMARY");
+        printf("SUMMARY_");
         setcolor(COLOR_RESET);
         break;
     case MESSAGE_SIGNAL:
         setcolor(COLOR_CYAN);
-        printf("SIGNAL");
+        printf(" SIGNAL ");
         setcolor(COLOR_RESET);
         break;
 
     default:
-        printf("OTHER");
+        printf(" OTHER_ ");
         break;
     }
     printf("]: ");
