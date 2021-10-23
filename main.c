@@ -35,6 +35,7 @@
 #define MAX_STRING_SIZE 256
 #define TMP_FILE "tmp"
 
+#define TMP_BATCH TMP_FILE "_batch"
 #define TMP_SOUT TMP_FILE "_out"
 #define TMP_SERR TMP_FILE "_err"
 
@@ -391,17 +392,23 @@ int main(int argc, char *argv[])
     // Child process distinction
     if (pid == 0)
     {
-        char *exec_arguments[MAX_STRING_SIZE];
-        exec_arguments[0] = "file";
-        exec_arguments[1] = "--mime-type";
-        int tmp_counter = 2;
+        int fdbatch = open(TMP_BATCH, O_CREAT | O_RDWR | O_TRUNC, 0644);
 
         for (int i = 0; i < queue_counter; i++)
         {
-            exec_arguments[i + tmp_counter] = files_queue[i];
+            char buf[MAX_STRING_SIZE + 1];
+            strcpy(buf, files_queue[i]);
+            buf[strlen(files_queue[i])] = '\n';
+            buf[strlen(files_queue[i]) + 1] = '\0';
+            ssize_t written = write(fdbatch, buf, strlen(buf));
+            if (written < 0)
+            {
+                close(fdbatch);
+                ERROR_CANT_WRITE_FILE(TMP_BATCH);
+            }
         }
-        tmp_counter += queue_counter;
-        exec_arguments[tmp_counter] = NULL;
+
+        close(fdbatch);
 
         int fdout = open(TMP_SOUT, O_CREAT | O_RDWR | O_TRUNC, 0644);
         if (fdout == -1)
@@ -412,6 +419,7 @@ int main(int argc, char *argv[])
         int fderr = open(TMP_SERR, O_CREAT | O_RDWR | O_TRUNC, 0644);
         if (fderr == -1)
         {
+            close(fdout);
             ERROR_CANT_OPEN_FILE(TMP_SERR);
         }
 
@@ -422,7 +430,7 @@ int main(int argc, char *argv[])
         close(fdout);
         close(fderr);
 
-        execvp("file", exec_arguments);
+        execlp("file", "file", "--mime-type", "-f", TMP_BATCH, NULL);
 
         /**
          * If this code is executed it means that exec returned -1
@@ -545,6 +553,7 @@ int main(int argc, char *argv[])
 #ifndef SHOW_DEBUG
     unlink(TMP_SOUT);
     unlink(TMP_SERR);
+    unlink(TMP_BATCH);
 #endif
     fclose(fl);
     free(linebuffer);

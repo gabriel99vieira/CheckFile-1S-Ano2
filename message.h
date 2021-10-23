@@ -22,6 +22,7 @@ void on_error(int err, int extCode, char *fmt, ...);
 #define C_ERROR_UNABLE_START_PROC 5
 #define C_ERROR_UNABLE_EXECUTE_PROC 6
 #define C_ERROR_UNABLE_TO_SET_SIGNAL_HANDLER 7
+#define C_ERROR_UNABLE_WRITE_FILE 8
 
 /**
  * @see on_debug()
@@ -35,6 +36,7 @@ void on_error(int err, int extCode, char *fmt, ...);
 #define MSG_FILE_NOT_EXISTS(file) MESSAGE(MESSAGE_ERROR, "cannot open file '%s' - %s", (file), strerror(ENOENT))
 #define MSG_INCORRECT_FILE_ARG(file) MESSAGE(MESSAGE_ERROR, "file format not suitable for this '%s' - %s", (file), strerror(EINVAL))
 
+#define ERROR_CANT_WRITE_FILE(file) on_error((errno), (C_ERROR_UNABLE_WRITE_FILE), "cannot write to file '%s'", (file))
 #define ERROR_CANT_OPEN_FILE(file) on_error((errno), (C_ERROR_UNABLE_OPEN_FILE), "cannot open file '%s'", (file))
 #define ERROR_FILE_NOT_EXISTS(file) on_error((ENOENT), (C_ERROR_FILE_NOT_EXISTS), "cannot open file '%s'", (file))
 #define ERROR_INCORRECT_FILE_ARG(file) on_error((EINVAL), (C_ERROR_INCRRECT_OR_INVALID_ARG), "file format not suitable for this '%s'", (file))
