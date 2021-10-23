@@ -175,8 +175,7 @@ int main(int argc, char *argv[])
     {
         MESSAGE(MESSAGE_INFO, "Analizing...");
 
-        int i = 0;
-        while (args.file_arg[i] != NULL)
+        for (size_t i = 0; i < args.file_given; i++)
         {
             if (!file_exists(args.file_arg[i]))
             {
@@ -194,10 +193,8 @@ int main(int argc, char *argv[])
             }
             else
             {
-                add_to_queue(&args.file_arg[i][0]);
+                add_to_queue(args.file_arg[i]);
             }
-
-            i++;
         }
     }
 
