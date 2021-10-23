@@ -1,4 +1,5 @@
 # Changelog
+
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
@@ -10,10 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 # Changes
 
-
 ## 2021-09-02
 
 Makefile > Line 64 > package name
+
 ```
 --set-package=$(PROGRAM)
 ```
@@ -21,13 +22,16 @@ Makefile > Line 64 > package name
 <br>
 
 Makefile > End of file > generate only args
+
 ```
 args:
 	gengetopt < $(PROGRAM_OPT).ggo --file-name=$(PROGRAM_OPT) --set-package=$(PROGRAM)
 ```
+
 <br>
 
 Added more `.h` (comented) depencencies do `main.c` file for easier use.
+
 ```c
 // #include <stdlib.h>
 // #include <unistd.h>
@@ -50,5 +54,9 @@ Added more `.h` (comented) depencencies do `main.c` file for easier use.
 // #include "memory.h"
 // #include "args.h"
 ```
+
+<br>
+
+Added `-Wno-unknown-pragmas` flag to compiler
 
 ## New Change

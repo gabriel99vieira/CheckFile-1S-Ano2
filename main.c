@@ -36,6 +36,9 @@
 #define MAX_STRING_SIZE 256
 #define TMP_FILE "tmp"
 
+#define TMP_SOUT TMP_FILE "_out"
+#define TMP_SERR TMP_FILE "_err"
+
 /**
  * @brief Add to queue helper
  *
@@ -84,6 +87,8 @@ int main(int argc, char *argv[])
     (void)argc;
     (void)argv;
 
+    MESSAGE(MESSAGE_INFO, "Starting ...");
+
     // Validate input
     if (cmdline_parser(argc, argv, &args) != 0)
     {
@@ -107,7 +112,7 @@ int main(int argc, char *argv[])
     /*
      * ────────────────────────────────────────────────────────────────── SIGNALS ─────
      */
-
+#pragma region SIGNALS
     struct sigaction act;
     act.sa_sigaction = handle_signal;       // handler function
     sigemptyset(&act.sa_mask);              // Remove signal blocking
@@ -131,6 +136,8 @@ int main(int argc, char *argv[])
         signal(SIGQUIT, SIG_IGN);
     }
 
+#pragma endregion SIGNALS
+
     // Clean queue
     for (int i = 0; i < MAX_QUEUE; i++)
     {
@@ -140,11 +147,11 @@ int main(int argc, char *argv[])
         }
     }
 
-    MESSAGE(MESSAGE_INFO, "Starting...");
-
     /*
      * ──────────────────────────────────────────────────────────── ARGUMENT INIT ─────
      */
+
+#pragma region ARGUMENT
 
     // File argument
     if (args.file_given)
@@ -281,9 +288,13 @@ int main(int argc, char *argv[])
         display_summary = 1;
         if (!args.file_given && !args.batch_given)
         {
-            MESSAGE(MESSAGE_INFO, "Analizing files listed in '%s' directory...", args.dir_arg);
+            MESSAGE(MESSAGE_INFO, "Analizing files listed in '%s' directory", args.dir_arg);
         }
 
+        /*
+            Checking if the last char is '/' or folder
+            Windows not supported
+        */
         int len_dir = strlen(args.dir_arg);
         char string_dir[len_dir + 2];
         strcpy(string_dir, args.dir_arg);
@@ -332,6 +343,11 @@ int main(int argc, char *argv[])
     // Free unused memory
     cmdline_parser_free(&args);
 
+    // Prints messagens in buffer
+    fflush(stdout);
+
+#pragma endregion ARGUMENT
+
     /*
      * ───────────────────────────────────────────────────────────── FORK PROCESS ─────
      */
@@ -340,6 +356,8 @@ int main(int argc, char *argv[])
         ! A buffer will not be used to retrieve the child process
         ! Instead a temporary file is created to allow more output
     */
+
+#pragma region CHILD_PROCESS
 
     // Create fork
     pid_t pid = fork();
@@ -363,15 +381,25 @@ int main(int argc, char *argv[])
         tmp_counter += queue_counter;
         exec_arguments[tmp_counter] = NULL;
 
-        int fd = open(TMP_FILE, O_CREAT | O_RDWR | O_TRUNC, 0644);
-        if (fd == -1)
+        int fdout = open(TMP_SOUT, O_CREAT | O_RDWR | O_TRUNC, 0644);
+        if (fdout == -1)
         {
-            ERROR_CANT_OPEN_FILE(getpid());
+            ERROR_CANT_OPEN_FILE(TMP_SOUT);
         }
 
-        // Copy of stdout to file
-        dup2(fd, STDOUT_FILENO);
-        close(fd);
+        int fderr = open(TMP_SERR, O_CREAT | O_RDWR | O_TRUNC, 0644);
+        if (fderr == -1)
+        {
+            ERROR_CANT_OPEN_FILE(TMP_SERR);
+        }
+
+        // Copy of io buffers
+        dup2(fdout, STDOUT_FILENO);
+        dup2(fderr, STDERR_FILENO);
+
+        close(fdout);
+        close(fderr);
+
         execvp("file", exec_arguments);
 
         /**
@@ -383,24 +411,28 @@ int main(int argc, char *argv[])
 
     waitpid(pid, NULL, 0);
 
+#pragma endregion CHILD_PROCESS
+
     /*
      * ─────────────────────────────────────────────────── DISPLAY PROCESSED DATA ─────
      */
 
-    if (!file_exists(TMP_FILE))
+#pragma region DISPLAY
+
+    if (!file_exists(TMP_SOUT))
     {
-        ERROR_FILE_NOT_EXISTS(TMP_FILE);
+        ERROR_FILE_NOT_EXISTS(TMP_SOUT);
     }
 
-    if (!is_regular_file(TMP_FILE))
+    if (!is_regular_file(TMP_SOUT))
     {
-        ERROR_INCORRECT_FILE_ARG(TMP_FILE);
+        ERROR_INCORRECT_FILE_ARG(TMP_SOUT);
     }
 
-    FILE *fl = fopen(TMP_FILE, "r");
+    FILE *fl = fopen(TMP_SOUT, "r");
     if (fl == NULL)
     {
-        ERROR_CANT_OPEN_FILE(TMP_FILE);
+        ERROR_CANT_OPEN_FILE(TMP_SOUT);
     }
 
     ssize_t readed = 0;
@@ -482,8 +514,11 @@ int main(int argc, char *argv[])
 
     printf("\n");
 
+#pragma endregion DISPLAY
+
     // Cleanup memory
-    unlink(TMP_FILE);
+    unlink(TMP_SOUT);
+    unlink(TMP_SERR);
     fclose(fl);
     free(linebuffer);
 

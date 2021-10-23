@@ -8,7 +8,7 @@
 LIBS=#-lm -pthread
 
 # Compiler flags
-CFLAGS=-Wall -Wextra -ggdb -std=c11 -pedantic -D_POSIX_C_SOURCE=200809L #-pg
+CFLAGS=-Wall -Wextra -ggdb -std=c11 -pedantic -D_POSIX_C_SOURCE=200809L -Wno-unknown-pragmas #-pg
 
 # Linker flags
 LDFLAGS=#-pg
