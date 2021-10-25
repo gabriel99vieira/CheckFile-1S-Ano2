@@ -438,6 +438,7 @@ void argument_file()
 
         for (size_t i = 0; i < args.file_given; i++)
         {
+
             if (!file_exists(args.file_arg[i]))
             {
                 ERROR_FILE_NOT_EXISTS(args.file_arg[i]);
@@ -471,15 +472,6 @@ void argument_batch()
             MESSAGE(MESSAGE_INFO, "Analizing files listed in '%s'...", args.batch_arg);
         }
 
-        if (strcmp(file_extension(args.batch_arg), "txt") != 0)
-        {
-            counter_error++;
-            char msg[MAX_STRING_SIZE];
-            strcpy(msg, args.batch_arg);
-            cmdline_parser_free(&args);
-            ERROR_INCORRECT_FILE_ARG(msg);
-        }
-
         if (!file_exists(args.batch_arg))
         {
             counter_error++;
@@ -490,6 +482,16 @@ void argument_batch()
         }
 
         if (!is_regular_file(args.batch_arg))
+        {
+            counter_error++;
+            char msg[MAX_STRING_SIZE];
+            strcpy(msg, args.batch_arg);
+            cmdline_parser_free(&args);
+            ERROR_INCORRECT_FILE_ARG(msg);
+        }
+
+        // ? Here might be better to check its mime-type
+        if (strcmp(file_extension(args.batch_arg), "txt") != 0)
         {
             counter_error++;
             char msg[MAX_STRING_SIZE];
@@ -616,7 +618,10 @@ void argument_directory()
                 }
             }
         }
-        closedir(directory);
+        if (closedir(directory) == -1)
+        {
+            ERROR_CANT_CLOSE_DIR(string_dir);
+        }
     }
 }
 

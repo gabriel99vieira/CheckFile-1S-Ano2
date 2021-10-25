@@ -39,7 +39,9 @@ int open_file(const char *filename, int mode)
 int file_exists(const char *filename)
 {
     int fd = open(filename, O_RDONLY);
+    int aux = errno;
     close(fd);
+    errno = aux;
     return (fd == -1) ? 0 : 1;
 }
 
