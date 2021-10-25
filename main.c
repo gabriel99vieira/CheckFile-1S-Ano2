@@ -64,6 +64,10 @@ void add_to_queue(char *string);
  */
 void handle_signal(int signal, siginfo_t *info, void *context);
 
+void argument_file();
+void argument_batch();
+void argument_directory();
+
 #pragma region INIT_VAR
 
 time_t timestamp;
@@ -171,188 +175,13 @@ int main(int argc, char *argv[])
 #pragma region ARGUMENT
 
     // File argument
-    if (args.file_given)
-    {
-        MESSAGE(MESSAGE_INFO, "Analizing...");
-
-        for (size_t i = 0; i < args.file_given; i++)
-        {
-            if (!file_exists(args.file_arg[i]))
-            {
-                ERROR_FILE_NOT_EXISTS(args.file_arg[i]);
-            }
-
-            if (!is_regular_file(args.file_arg[i]))
-            {
-                ERROR_INCORRECT_FILE_ARG(args.file_arg[i]);
-            }
-
-            if (strlen(args.file_arg[i]) > MAX_STRING_SIZE)
-            {
-                MSG_FILE_TOOLONG(args.file_arg[i]);
-            }
-            else
-            {
-                add_to_queue(args.file_arg[i]);
-            }
-        }
-    }
+    argument_file();
 
     // Batch argument
-    if (args.batch_given)
-    {
-        display_summary = 1;
-
-        if (!args.dir_given && !args.file_given)
-        {
-            MESSAGE(MESSAGE_INFO, "Analizing files listed in '%s'...", args.batch_arg);
-        }
-
-        if (strcmp(file_extension(args.batch_arg), "txt") != 0)
-        {
-            counter_error++;
-            char msg[MAX_STRING_SIZE];
-            strcpy(msg, args.batch_arg);
-            cmdline_parser_free(&args);
-            ERROR_INCORRECT_FILE_ARG(msg);
-        }
-
-        if (!file_exists(args.batch_arg))
-        {
-            counter_error++;
-            char msg[MAX_STRING_SIZE];
-            strcpy(msg, args.batch_arg);
-            cmdline_parser_free(&args);
-            ERROR_FILE_NOT_EXISTS(msg);
-        }
-
-        if (!is_regular_file(args.batch_arg))
-        {
-            counter_error++;
-            char msg[MAX_STRING_SIZE];
-            strcpy(msg, args.batch_arg);
-            cmdline_parser_free(&args);
-            ERROR_INCORRECT_FILE_ARG(msg);
-        }
-
-        int fd = open_file(args.batch_arg, O_RDONLY), fs = file_size(fd), readed = 0, linebuffer_counter = 0;
-        char linebuffer[fs + 2], c;
-        linebuffer[fs] = '\0';
-
-        while ((readed = read(fd, &c, 1)) >= 0)
-        {
-            if (c == '\r')
-            {
-                continue;
-            }
-
-            //* End a line
-            if (c == '\n' || c == '\0' || readed == 0)
-            {
-                // Make sure the line ends
-                linebuffer[linebuffer_counter] = '\0';
-                linebuffer_counter = 0;
-
-                // Confirm that the line has text
-                if (strlen(linebuffer) > 0)
-                {
-                    counter_analized++;
-                    // Checks if the record exceeds the MAX_STRING_SIZE
-                    if (strlen(linebuffer) > MAX_STRING_SIZE)
-                    {
-                        counter_error++;
-                        MSG_FILE_TOOLONG(linebuffer);
-                        continue;
-                    }
-
-                    if (!file_exists(linebuffer))
-                    {
-                        counter_error++;
-                        MSG_FILE_NOT_EXISTS(linebuffer);
-                        continue;
-                    }
-
-                    if (!is_regular_file(linebuffer))
-                    {
-                        counter_error++;
-                        MSG_INCORRECT_FILE_ARG(linebuffer);
-                        continue;
-                    }
-
-                    add_to_queue(linebuffer);
-                }
-            }
-            else
-            {
-                // Adds to the buffer while no line ends
-                linebuffer[linebuffer_counter] = c;
-                linebuffer_counter++;
-            }
-
-            if (readed == 0)
-            {
-                break;
-            }
-        }
-    }
+    argument_batch();
 
     // Dir argument
-    if (args.dir_given)
-    {
-        display_summary = 1;
-        if (!args.file_given && !args.batch_given)
-        {
-            MESSAGE(MESSAGE_INFO, "Analizing files listed in '%s' directory", args.dir_arg);
-        }
-
-        /*
-            Checking if the last char is '/' or folder
-            Windows not supported
-        */
-        int len_dir = strlen(args.dir_arg);
-        char string_dir[len_dir + 2];
-        strcpy(string_dir, args.dir_arg);
-
-        if (string_dir[len_dir - 1] != '/')
-        {
-            string_dir[len_dir] = '/';
-            string_dir[len_dir + 1] = '\0';
-        }
-
-        DIR *directory;
-        struct dirent *entity;
-        directory = opendir(string_dir);
-        if (directory == NULL)
-        {
-            cmdline_parser_free(&args);
-            ERROR_CANT_OPEN_DIR(string_dir);
-        }
-        while ((entity = readdir(directory)) != NULL)
-        {
-            // if (entity->d_type == DT_REG) // Sometimes it doesnt work...
-            // https://stackoverflow.com/questions/5114396/dt-reg-undeclared-first-use-in-this-function-and-std-c99
-            if (entity->d_type == 8)
-            {
-                counter_analized++;
-                char full[MAX_STRING_SIZE];
-                sprintf(full, "%s%s", string_dir, entity->d_name);
-
-                if (strlen(full) > MAX_STRING_SIZE)
-                {
-                    counter_error++;
-                    cmdline_parser_free(&args);
-                    MSG_FILE_TOOLONG(full);
-                }
-                else
-                {
-                    strcpy(files_queue[queue_counter], full);
-                    queue_counter++;
-                    ON_DEBUG(MESSAGE_INFO, "Added new file to files_queue ( %s )", full);
-                }
-            }
-        }
-        closedir(directory);
-    }
+    argument_directory();
 
     /**
      * ! Add here your new way to select files
@@ -564,11 +393,6 @@ int main(int argc, char *argv[])
 
 #pragma region HELPERS
 
-/**
- * @brief Add to queue helper
- *
- * @param string
- */
 void add_to_queue(char *string)
 {
     strcpy(files_queue[queue_counter], string);
@@ -576,13 +400,6 @@ void add_to_queue(char *string)
     ON_DEBUG(MESSAGE_INFO, "Added new file to files_queue ( %s )", string);
 }
 
-/**
- * @brief Signals handler
- *
- * @param signal
- * @param info
- * @param context
- */
 void handle_signal(int signal, siginfo_t *info, void *context)
 {
     (void)context;
@@ -611,6 +428,196 @@ void handle_signal(int signal, siginfo_t *info, void *context)
     }
 
     errno = aux;
+}
+
+void argument_file()
+{
+    if (args.file_given)
+    {
+        MESSAGE(MESSAGE_INFO, "Analizing...");
+
+        for (size_t i = 0; i < args.file_given; i++)
+        {
+            if (!file_exists(args.file_arg[i]))
+            {
+                ERROR_FILE_NOT_EXISTS(args.file_arg[i]);
+            }
+
+            if (!is_regular_file(args.file_arg[i]))
+            {
+                ERROR_INCORRECT_FILE_ARG(args.file_arg[i]);
+            }
+
+            if (strlen(args.file_arg[i]) > MAX_STRING_SIZE)
+            {
+                MSG_FILE_TOOLONG(args.file_arg[i]);
+            }
+            else
+            {
+                add_to_queue(args.file_arg[i]);
+            }
+        }
+    }
+}
+
+void argument_batch()
+{
+    if (args.batch_given)
+    {
+        display_summary = 1;
+
+        if (!args.dir_given && !args.file_given)
+        {
+            MESSAGE(MESSAGE_INFO, "Analizing files listed in '%s'...", args.batch_arg);
+        }
+
+        if (strcmp(file_extension(args.batch_arg), "txt") != 0)
+        {
+            counter_error++;
+            char msg[MAX_STRING_SIZE];
+            strcpy(msg, args.batch_arg);
+            cmdline_parser_free(&args);
+            ERROR_INCORRECT_FILE_ARG(msg);
+        }
+
+        if (!file_exists(args.batch_arg))
+        {
+            counter_error++;
+            char msg[MAX_STRING_SIZE];
+            strcpy(msg, args.batch_arg);
+            cmdline_parser_free(&args);
+            ERROR_FILE_NOT_EXISTS(msg);
+        }
+
+        if (!is_regular_file(args.batch_arg))
+        {
+            counter_error++;
+            char msg[MAX_STRING_SIZE];
+            strcpy(msg, args.batch_arg);
+            cmdline_parser_free(&args);
+            ERROR_INCORRECT_FILE_ARG(msg);
+        }
+
+        int fd = open_file(args.batch_arg, O_RDONLY), fs = file_size(fd), readed = 0, linebuffer_counter = 0;
+        char linebuffer[fs + 2], c;
+        linebuffer[fs] = '\0';
+
+        while ((readed = read(fd, &c, 1)) >= 0)
+        {
+            if (c == '\r')
+            {
+                continue;
+            }
+
+            //* End a line
+            if (c == '\n' || c == '\0' || readed == 0)
+            {
+                // Make sure the line ends
+                linebuffer[linebuffer_counter] = '\0';
+                linebuffer_counter = 0;
+
+                // Confirm that the line has text
+                if (strlen(linebuffer) > 0)
+                {
+                    counter_analized++;
+                    // Checks if the record exceeds the MAX_STRING_SIZE
+                    if (strlen(linebuffer) > MAX_STRING_SIZE)
+                    {
+                        counter_error++;
+                        MSG_FILE_TOOLONG(linebuffer);
+                        continue;
+                    }
+
+                    if (!file_exists(linebuffer))
+                    {
+                        counter_error++;
+                        MSG_FILE_NOT_EXISTS(linebuffer);
+                        continue;
+                    }
+
+                    if (!is_regular_file(linebuffer))
+                    {
+                        counter_error++;
+                        MSG_INCORRECT_FILE_ARG(linebuffer);
+                        continue;
+                    }
+
+                    add_to_queue(linebuffer);
+                }
+            }
+            else
+            {
+                // Adds to the buffer while no line ends
+                linebuffer[linebuffer_counter] = c;
+                linebuffer_counter++;
+            }
+
+            if (readed == 0)
+            {
+                break;
+            }
+        }
+    }
+}
+
+void argument_directory()
+{
+    if (args.dir_given)
+    {
+        display_summary = 1;
+        if (!args.file_given && !args.batch_given)
+        {
+            MESSAGE(MESSAGE_INFO, "Analizing files listed in '%s' directory", args.dir_arg);
+        }
+
+        /*
+            Checking if the last char is '/' or folder
+            Windows not supported
+        */
+        int len_dir = strlen(args.dir_arg);
+        char string_dir[len_dir + 2];
+        strcpy(string_dir, args.dir_arg);
+
+        if (string_dir[len_dir - 1] != '/')
+        {
+            string_dir[len_dir] = '/';
+            string_dir[len_dir + 1] = '\0';
+        }
+
+        DIR *directory;
+        struct dirent *entity;
+        directory = opendir(string_dir);
+        if (directory == NULL)
+        {
+            cmdline_parser_free(&args);
+            ERROR_CANT_OPEN_DIR(string_dir);
+        }
+        while ((entity = readdir(directory)) != NULL)
+        {
+            // if (entity->d_type == DT_REG) // Sometimes it doesnt work...
+            // https://stackoverflow.com/questions/5114396/dt-reg-undeclared-first-use-in-this-function-and-std-c99
+            if (entity->d_type == 8)
+            {
+                counter_analized++;
+                char full[MAX_STRING_SIZE];
+                sprintf(full, "%s%s", string_dir, entity->d_name);
+
+                if (strlen(full) > MAX_STRING_SIZE)
+                {
+                    counter_error++;
+                    cmdline_parser_free(&args);
+                    MSG_FILE_TOOLONG(full);
+                }
+                else
+                {
+                    strcpy(files_queue[queue_counter], full);
+                    queue_counter++;
+                    ON_DEBUG(MESSAGE_INFO, "Added new file to files_queue ( %s )", full);
+                }
+            }
+        }
+        closedir(directory);
+    }
 }
 
 #pragma endregion HELPERS
