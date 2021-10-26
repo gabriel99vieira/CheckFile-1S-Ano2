@@ -395,9 +395,16 @@ int main(int argc, char *argv[])
 
 void add_to_queue(char *string)
 {
-    strcpy(files_queue[queue_counter], string);
-    queue_counter++;
-    ON_DEBUG(MESSAGE_INFO, "Added new file to files_queue ( %s )", string);
+    if (queue_counter + 1 > MAX_QUEUE)
+    {
+        MESSAGE(MESSAGE_ERROR, "Maximum files exceeded ( %s ignored )", string);
+    }
+    else
+    {
+        strcpy(files_queue[queue_counter], string);
+        queue_counter++;
+        ON_DEBUG(MESSAGE_INFO, "Added new file to files_queue ( %s )", string);
+    }
 }
 
 void handle_signal(int signal, siginfo_t *info, void *context)
