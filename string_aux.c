@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
+#include "memory.h"
+#include "message.h"
 #include "string_aux.h"
 
 void strcut(char *buffer, const char *string, int min, int max)
@@ -33,4 +35,52 @@ void strtolower(char *string)
     {
         string[i] = tolower(string[i]);
     }
+}
+
+void add_to_queue(char **queue, int *queue_counter, char *string)
+{
+    if (*queue_counter + 1 > MAX_QUEUE)
+    {
+        MESSAGE(MESSAGE_ERROR, "Maximum files exceeded ( %s ignored )", string);
+    }
+    else
+    {
+        strcpy(queue[*queue_counter], string);
+        (*queue_counter)++;
+        ON_DEBUG(MESSAGE_INFO, "Added new file to files_queue ( %s )", string);
+    }
+}
+
+void clean_queue(char **queue)
+{
+    for (int i = 0; i < MAX_QUEUE; i++)
+    {
+        for (int j = 0; j < MAX_STRING_SIZE; j++)
+        {
+            queue[i][j] = '\0';
+        }
+    }
+}
+
+char **queue_new()
+{
+    int quantity = MAX_QUEUE;
+    int length = MAX_STRING_SIZE;
+
+    char *matrix = MALLOC(sizeof(char) * quantity * length);
+
+    char **matrix_aux = (char **)MALLOC(sizeof(char *) * quantity);
+
+    for (int i = 0; i < quantity; i++)
+    {
+        matrix_aux[i] = &(matrix[i * length]);
+    }
+
+    return matrix_aux;
+}
+
+void queue_free(char **queue)
+{
+    FREE(*queue); // FREE(matrix[0])
+    FREE(queue);
 }

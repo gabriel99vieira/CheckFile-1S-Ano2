@@ -1,6 +1,8 @@
 {
     "files.associations": {
-        "type_traits": "c"
+        "type_traits": "c",
+        "stdio.h": "c",
+        "memory.h": "c"
     },
     "editor.lineHeight": 1.8
 }
