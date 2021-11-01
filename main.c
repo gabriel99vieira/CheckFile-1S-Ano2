@@ -119,10 +119,11 @@ int main(int argc, char *argv[])
     {
         ERROR_UNABLE_SET_SIGNAL_HANDLER(SIGUSR1);
     }
-    else
+
+    if (args.batch_given < 1)
     {
         // sigaddset(&act.sa_mask, SIGUSR1);
-        signal(SIGQUIT, SIG_IGN);
+        signal(SIGUSR1, SIG_IGN);
     }
 
     /*
