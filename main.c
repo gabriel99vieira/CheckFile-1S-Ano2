@@ -439,8 +439,7 @@ void argument_batch(char **files_queue, int *queue_counter, int *display_summary
             MESSAGE(MESSAGE_INFO, "Analizing files listed in '%s'...", args.batch_arg);
         }
 
-        // Clean msg
-        if (1)
+        // Clean msg variable to help with space
         {
             char msg[MAX_STRING_SIZE];
             strcpy(msg, args.batch_arg);
