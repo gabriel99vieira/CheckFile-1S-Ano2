@@ -593,7 +593,7 @@ void argument_directory(char **files_queue, int *queue_counter, int *display_sum
                 else
                 {
                     add_to_queue(files_queue, queue_counter, full);
-                    // statistics.counter_analized++; // ! search for ( '? idk' ) line 571
+                    // statistics.counter_analized++; // ! search for ( '? idk' ) line 576
                 }
             }
         }
