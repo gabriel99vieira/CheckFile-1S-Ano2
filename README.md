@@ -92,4 +92,4 @@ Diogo dos Anjos Barbeiro Nº2200687
 
 ## License
 
-No License attatched
+[https://github.com/gabriel99vieira/CheckFile-1S-Ano2/blob/main/LICENSE](MIT License)
